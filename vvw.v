@@ -5,10 +5,10 @@ enum Item_type {
 	file = 0
 	folder
 	// archive format
-	zip
+	zip = 16
 	archive_file
-	// graphic format
-	bmp
+	// graphic format, MUST stay after the other types!!
+	bmp = 32
 	jpg
 	png
 	gif
@@ -83,14 +83,14 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 			}
 		}
 		
-		// IMPORTANT NOTE: don't close before used all teh items!!
+		// IMPORTANT NOTE: don't close the zip file before heve used all the items!!
 		zp.close_entry()
 		
 	}
 	zp.close()
 }
 
-fn (mut il Item_list ) scan_dir(path string, in_index int)? {
+fn (mut il Item_list ) scan_folder(path string, in_index int)? {
 	//println("Scanning [$path]")
 	mut folder_list := []string{}
 	lst := os.ls(path)?
@@ -131,7 +131,7 @@ fn (mut il Item_list ) scan_dir(path string, in_index int)? {
 			i_type: .folder
 		}
 		il.lst << item
-		il.scan_dir(pt, il.lst.len - 1 )?
+		il.scan_folder(pt, il.lst.len - 1 )?
 	}
 	
 	//println(il.lst.len)
@@ -158,8 +158,38 @@ fn main() {
 	item_list.path_sep = $if windows { '\\' } $else { '/' }
 	
 	for x in args {
+		// scan folder
 		if os.is_dir(x) {
-			item_list.scan_dir(x, -1)?
+			mut item := Item{
+				path: x
+				name: x
+				container_index: item_list.lst.len
+				i_type: .folder
+			}
+			item_list.lst << item
+			item_list.scan_folder(x, item_list.lst.len - 1)?
+		} else {
+			
+			mut item := Item{
+				path: x
+				name: x
+				container_index: -1
+			}
+			ext := get_extension(x)
+			// scan .zip
+			if ext == .zip {
+				item.i_type = .zip
+				item_list.lst << item
+				item_list.scan_zip(x, item_list.lst.len-1)?
+				continue
+			}
+			// single images
+			if is_image(ext) == true {
+				item.i_type = ext
+				item_list.lst << item
+				continue
+			}
+			
 		}
 	}
 	
