@@ -1,11 +1,6 @@
 import os
 import szip
 
-const (
-	//path_sep = '\\' 
-	supported_type = ['.jpg','jpeg','.bmp','.png','.gif']
-)
-
 enum Item_type {
 	file = 0
 	folder
@@ -44,6 +39,8 @@ fn get_extension(x string) Item_type {
 			'.png' { return .png }
 			'.bmp' { return .bmp }
 			'.gif' { return .gif }
+			// containers
+			'.zip' { return .zip }
 			else{}
 		}
 		ext5 := x[x.len-4..].to_lower()
@@ -52,6 +49,13 @@ fn get_extension(x string) Item_type {
 		}
 	}
 	return .file
+}
+
+fn is_image(x Item_type) bool {
+	if int(x) >= int(Item_type.bmp) {
+		return true
+	}
+	return false
 }
 
 fn (mut il Item_list ) scan_zip(path string, in_index int)? {
@@ -66,14 +70,14 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 		//println("$index ${name} ${size:10} $is_dir")
 		
 		if !is_dir {
-			img_type := get_extension(name)
-			if img_type != .file {
+			ext := get_extension(name)
+			if is_image(ext) == true {
 				mut item := Item{
 					path: path
 					name: "$name" // generate a copy
 					container_index: in_index
 					container_item_index: index
-					i_type: img_type
+					i_type: ext
 				}
 				il.lst << item
 			}
@@ -86,34 +90,34 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 	zp.close()
 }
 
-fn (mut il Item_list ) scan_dir(path string)? {
+fn (mut il Item_list ) scan_dir(path string, in_index int)? {
 	//println("Scanning [$path]")
 	mut folder_list := []string{}
 	lst := os.ls(path)?
 	
 	// manage the single files
-	for x in lst {
+	for c, x in lst {
 		pt := "${path}${il.path_sep}${x}"
 		mut item := Item{
 			path: path
 			name: x
+			container_index: in_index
+			container_item_index: c
 		}
 		if os.is_dir(pt) {
 			folder_list << x
 		} else {
-			// check .zip file
-			if x.len > 4 {
-				ext4 := x[x.len-4..].to_lower()
-				if ext4 == '.zip' {
-					item.i_type = .zip
-					il.lst << item
-					il.scan_zip(pt, il.lst.len-1)?
-					continue
-				}
-				else if ext4 in supported_type {
-					il.lst << item
-					continue
-				}
+			ext := get_extension(x)
+			if ext == .zip {
+				item.i_type = .zip
+				il.lst << item
+				il.scan_zip(pt, il.lst.len-1)?
+				continue
+			}
+			if is_image(ext) == true {
+				item.i_type = ext
+				il.lst << item
+				continue
 			}
 		} 
 	}
@@ -127,7 +131,7 @@ fn (mut il Item_list ) scan_dir(path string)? {
 			i_type: .folder
 		}
 		il.lst << item
-		il.scan_dir(pt)?
+		il.scan_dir(pt, il.lst.len - 1 )?
 	}
 	
 	//println(il.lst.len)
@@ -142,7 +146,7 @@ fn (il Item_list )print_list() {
 		if x.i_type == .zip {
 			print("[ZIP]")
 		}
-		println("${x.path} => ${x.name}")
+		println("${x.path} => ${x.container_index} ${x.container_item_index} ${x.name} ")
 	}
 }
 
@@ -155,7 +159,7 @@ fn main() {
 	
 	for x in args {
 		if os.is_dir(x) {
-			item_list.scan_dir(x)?
+			item_list.scan_dir(x, -1)?
 		}
 	}
 	
