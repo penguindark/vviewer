@@ -1,18 +1,64 @@
 import os
 import szip
 
-fn scan_dir(path string)? {
-	mut res := []string{}
+enum Item_type {
+	file = 0
+	folder
+	zip
+}
+
+pub 
+struct Item {
+pub mut:
+	path string
+	name string
+	size u64
+	i_type Item_type = .file
+}
+
+struct Item_list {
+pub mut:
+	lst []Item
+}
+
+fn (mut il Item_list )scan_dir(path string)? {
+	mut folder_list := []string{}
 	lst := os.ls(path)?
+	
+	// manage the single files
 	for x in lst {
 		pt := "$path\\$x"
-		if os.is_dir(pt) {
-			println("$pt is a FOLDER")
-			scan_dir(pt)?
-		} else {
-			res << pt
-			println("$pt is a FILE")
+		mut item := Item{
+			path: path
+			name: x
 		}
+		if os.is_dir(pt) {
+			folder_list << x
+		} else {
+			il.lst << item
+		} 
+	}
+	
+	// manage the folders
+	for x in folder_list {
+		pt := "$path\\$x"
+		item := Item{
+			path: path
+			name: x
+			i_type: .folder
+		}
+		il.lst << item
+		il.scan_dir(pt)?
+	}
+	
+}
+
+fn (il Item_list )print_list() {
+	for x in il.lst {
+		if x.i_type == .folder {
+			print("[]")
+		}
+		println("${x.path} => ${x.name}")
 	}
 }
 
@@ -23,11 +69,15 @@ fn main() {
 	lst := os.ls(".")?
 	println("lst: $lst")
 */
+
+	mut item_list := Item_list{}
 	for x in args {
 		if os.is_dir(x) {
-			scan_dir(x)?
+			item_list.scan_dir(x)?
 		}
 	}
+	
+	item_list.print_list()
 /*	
 	mut zp := szip.open(args[0],szip.CompressionLevel.no_compression , szip.OpenMode.read_only)?
 	n_entries := zp.total()?
@@ -44,5 +94,5 @@ fn main() {
 	}
 	zp.close()
 */	
-	name := os.input('Enter to exit: ')
+	os.input('Enter to exit: ')
 }
