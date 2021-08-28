@@ -30,7 +30,8 @@ struct App {
 mut:
 	gg          &gg.Context
 	pip_3d      C.sgl_pipeline
-	texture     C.sg_image
+	texture        C.sg_image
+	texture_filler C.sg_image
 	init_flag   bool
 	frame_count int
 	mouse_x     int = -1
@@ -49,6 +50,10 @@ mut:
 	img_w       int
 	img_h       int
 	img_ratio   f32 = 1.0
+	
+	// item list
+	item_list   Item_list
+	
 }
 
 /******************************************************************************
@@ -136,6 +141,24 @@ pub fn load_texture(file_name string) (C.sg_image, int, int) {
 	return res, int(img.width), int(img.height)
 }
 
+pub fn load_image(mut app App) {
+	clear_show_params(mut app)
+	destroy_texture(app.texture)
+	file_path := app.item_list.get_file_path()
+	if file_path.len > 0 {
+		println("${app.item_list.lst[app.item_list.item_index]} $file_path ${app.item_list.lst.len}")
+		app.texture, app.img_w, app.img_h = load_texture(file_path)
+		app.img_ratio = f32(app.img_w) / f32(app.img_h)
+		println("texture: [${app.img_w},${app.img_h}] ratio: ${app.img_ratio}")
+	} else {
+		app.texture = app.texture_filler
+		app.img_w = 256
+		app.img_h = 256
+		app.img_ratio = f32(app.img_w) / f32(app.img_h)
+		println("texture NOT FOUND: use filler!")
+	}
+}
+
 /******************************************************************************
 *
 * Init / Cleanup
@@ -143,7 +166,7 @@ pub fn load_texture(file_name string) (C.sg_image, int, int) {
 ******************************************************************************/
 fn app_init(mut app App) {
 	app.init_flag = true
-
+/*
 	// set max vertices,
 	// for a large number of the same type of object it is better use the instances!!
 	desc := sapp.create_desc()
@@ -152,7 +175,7 @@ fn app_init(mut app App) {
 		max_vertices: 50 * 65536
 	}
 	sgl.setup(&sgl_desc)
-
+*/
 	// 3d pipeline
 	mut pipdesc := C.sg_pipeline_desc{}
 	unsafe { C.memset(&pipdesc, 0, sizeof(pipdesc)) }
@@ -207,14 +230,12 @@ fn app_init(mut app App) {
 		}
 	}
 	unsafe {
+		app.texture_filler = create_texture(w, h, tmp_txt)
 		app.texture = create_texture(w, h, tmp_txt)
 		free(tmp_txt)
 	}
 	
-	destroy_texture(app.texture)
-	app.texture, app.img_w, app.img_h = load_texture("C:\\Dev\\temp\\vwtest\\GiadaENicola.JPG")
-	app.img_ratio = f32(app.img_w) / f32(app.img_h)
-	println("texture: [${app.img_w},${app.img_h}] rario: ${app.img_ratio}")
+	load_image(mut app)
 }
 
 fn cleanup(mut app App) {
@@ -285,6 +306,14 @@ fn frame(mut app App) {
 * event
 *
 ******************************************************************************/
+fn clear_show_params(mut app App) {
+	app.scale = 1.0
+	app.tr_x = 0
+	app.tr_y = 0
+	app.last_tr_x = 0
+	app.last_tr_y = 0
+}
+
 fn my_event_manager(mut ev gg.Event, mut app App) {
 	app.scroll_y = int(ev.scroll_y)
 	if app.scroll_y != 0 {
@@ -304,11 +333,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	}
 	
 	if ev.typ == .mouse_down && ev.mouse_button == .middle {
-		app.scale = 1.0
-		app.tr_x = 0
-		app.tr_y = 0
-		app.last_tr_x = 0
-		app.last_tr_y = 0
+		clear_show_params(mut app)
 	}
 	
 	ws := gg.window_size_real_pixels()
@@ -340,9 +365,13 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			exit(0)
 		}
 		if ev.key_code == .left {
+			app.item_list.get_next_item(-1)
+			load_image(mut app)
 			println("left")
 		}
 		if ev.key_code == .right {
+			app.item_list.get_next_item(1)
+			load_image(mut app)
 			println("right")
 		}
 	}
@@ -360,15 +389,14 @@ fn main() {
 	args := os.args[1..]
 	println("Args: ${args}")
 	
-	mut item_list := Item_list{}
-	item_list.get_items_list() or {eprintln("ERROR loading files!")}
-	println("First: ${item_list.lst[1]}")
-
 	// App init
 	mut app := &App{
 		gg: 0
 	}
-
+	
+	app.item_list = Item_list{}
+	app.item_list.get_items_list() or {eprintln("ERROR loading files!")}
+	
 	app.gg = gg.new_context(
 		width: win_width
 		height: win_height

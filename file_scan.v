@@ -1,6 +1,11 @@
 import os
 import szip
 
+/******************************************************************************
+*
+* Struct and Enums
+*
+******************************************************************************/
 enum Item_type {
 	file = 0
 	folder
@@ -24,15 +29,23 @@ pub mut:
 	container_index int  // used if the item is in a container (.zip, .rar, etc)
 	container_item_index int // index in the container if the item is contained
 	need_extract bool // if true need to extraction from the container
+	drawable bool // if true the image can be showed
+	n_item int = 0
 }
 
 struct Item_list {
 pub mut:
 	lst         []Item
 	path_sep    string
-	shown_index int = -1
+	item_index  int = -1
+	n_item      int = 0
 }
 
+/******************************************************************************
+*
+* Scan functions
+*
+******************************************************************************/
 fn get_extension(x string) Item_type {
 	if x.len > 4 {
 		ext4 := x[x.len-4..].to_lower()
@@ -76,6 +89,7 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 		if !is_dir {
 			ext := get_extension(name)
 			if is_image(ext) == true {
+				il.n_item += 1
 				mut item := Item{
 					need_extract: true
 					path: path
@@ -83,6 +97,8 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 					container_index: in_index
 					container_item_index: index
 					i_type: ext
+					n_item: il.n_item
+					drawable: true
 				}
 				il.lst << item
 			}
@@ -120,7 +136,10 @@ fn (mut il Item_list ) scan_folder(path string, in_index int)? {
 				continue
 			}
 			if is_image(ext) == true {
+				il.n_item += 1
+				item.n_item = il.n_item
 				item.i_type = ext
+				item.drawable = true
 				il.lst << item
 				continue
 			}
@@ -155,7 +174,6 @@ fn (il Item_list )print_list() {
 	}
 }
 
-
 fn (mut item_list Item_list ) get_items_list()? {
 	args := os.args[1..]
 	println("Args: ${args}")
@@ -189,12 +207,57 @@ fn (mut item_list Item_list ) get_items_list()? {
 			}
 			// single images
 			if is_image(ext) == true {
+				item_list.n_item += 1
+				item.n_item = item_list.n_item
 				item.i_type = ext
+				item.drawable = true
 				item_list.lst << item
 				continue
 			}
 			
 		}
 	}
-	item_list.print_list()
+	
+	item_list.get_next_item(1)
+	
+	//item_list.print_list()
+}
+
+/******************************************************************************
+*
+* Navigation functions
+*
+******************************************************************************/
+fn (mut il Item_list ) get_next_item(in_inc int) {
+	if il.lst.len <= 0 || il.n_item <= 0 {
+		return
+	}
+	
+	inc := if in_inc > 0 {1} else {-1}
+	mut i := il.item_index + in_inc
+	println("i0: $i")
+	if i < 0 {
+		i = il.lst.len + i
+	} else if i >= il.lst.len {
+		i = i % il.lst.len
+	}
+  
+	println("i1: $i")
+	for {
+		if il.lst[i].drawable == true && il.lst[i].need_extract == false {
+			il.item_index = i
+			break
+		}
+		i = i + inc
+		if i < 0 {
+			i = il.lst.len + i
+		}	else if i >= il.lst.len {
+			i = i % il.lst.len
+		}
+	}
+	//println("Found: ${il.item_index}")
+}
+
+fn (il Item_list ) get_file_path() string {
+	return "${il.lst[il.item_index].path}${il.path_sep}${il.lst[il.item_index].name}"
 }
