@@ -31,6 +31,7 @@ pub mut:
 	need_extract bool // if true need to extraction from the container
 	drawable bool // if true the image can be showed
 	n_item int
+	rotation int  // number of rotation of PI/2
 }
 
 struct Item_list {
@@ -262,4 +263,10 @@ fn (il Item_list ) get_file_path() string {
 		return ""
 	}
 	return "${il.lst[il.item_index].path}${il.path_sep}${il.lst[il.item_index].name}"
+}
+fn (mut il Item_list ) rotate(in_inc int) {
+	il.lst[il.item_index].rotation += in_inc
+	if il.lst[il.item_index].rotation >= 4 {
+		il.lst[il.item_index].rotation = 0
+	}
 }
