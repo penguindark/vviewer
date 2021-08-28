@@ -30,7 +30,8 @@ pub mut:
 	container_item_index int // index in the container if the item is contained
 	need_extract bool // if true need to extraction from the container
 	drawable bool // if true the image can be showed
-	n_item int = 0
+	n_item int
+	rotation int  // number of rotation of PI/2
 }
 
 struct Item_list {
@@ -38,7 +39,7 @@ pub mut:
 	lst         []Item
 	path_sep    string
 	item_index  int = -1
-	n_item      int = 0
+	n_item      int
 }
 
 /******************************************************************************
@@ -68,8 +69,17 @@ fn get_extension(x string) Item_type {
 	return .file
 }
 
+[inline]
 fn is_image(x Item_type) bool {
 	if int(x) >= int(Item_type.bmp) {
+		return true
+	}
+	return false
+}
+
+[inline]
+fn is_container(x Item_type) bool {
+	if x in [.zip, .folder] {
 		return true
 	}
 	return false
@@ -78,7 +88,7 @@ fn is_image(x Item_type) bool {
 fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 	mut zp := szip.open(path,szip.CompressionLevel.no_compression , szip.OpenMode.read_only)?
 	n_entries := zp.total()?
-	println(n_entries)
+	//println(n_entries)
 	for index in 0..n_entries {
 		zp.open_entry_by_index(index)?
 		is_dir := zp.is_dir()?
@@ -220,6 +230,7 @@ fn (mut item_list Item_list ) get_items_list()? {
 	
 	item_list.get_next_item(1)
 	
+	// debug call for list all teh loaded items
 	//item_list.print_list()
 }
 
@@ -235,15 +246,15 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 	
 	inc := if in_inc > 0 {1} else {-1}
 	mut i := il.item_index + in_inc
-	println("i0: $i")
+
 	if i < 0 {
 		i = il.lst.len + i
 	} else if i >= il.lst.len {
 		i = i % il.lst.len
 	}
   
-	println("i1: $i")
 	for {
+		// for now skip containers
 		if il.lst[i].drawable == true && il.lst[i].need_extract == false {
 			il.item_index = i
 			break
@@ -258,9 +269,48 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 	//println("Found: ${il.item_index}")
 }
 
+fn (mut il Item_list ) go_to_next_container(in_inc int) {
+	if il.lst.len <= 0 || il.n_item <= 0 {
+		return
+	}
+	inc := if in_inc > 0 {1} else {-1}
+	mut i := il.item_index + in_inc
+	if i < 0 {
+		i = il.lst.len + i
+	} else if i >= il.lst.len {
+		i = i % il.lst.len
+	}
+	start := i
+	for {
+		// check if we found a folder
+		if is_container(il.lst[i].i_type) == true {
+			il.item_index = i
+			il.get_next_item(inc)
+			break
+		}
+		// continue to search
+		i = i + inc
+		if i < 0 {
+			i = il.lst.len + i
+		}	else if i >= il.lst.len {
+			i = i % il.lst.len
+		}
+		// if we made a loop exit
+		if i == start {
+			break
+		}
+	}
+}
+
 fn (il Item_list ) get_file_path() string {
 	if il.lst.len <= 0 || il.n_item <= 0 {
 		return ""
 	}
 	return "${il.lst[il.item_index].path}${il.path_sep}${il.lst[il.item_index].name}"
+}
+fn (mut il Item_list ) rotate(in_inc int) {
+	il.lst[il.item_index].rotation += in_inc
+	if il.lst[il.item_index].rotation >= 4 {
+		il.lst[il.item_index].rotation = 0
+	}
 }
