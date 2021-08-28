@@ -356,7 +356,11 @@ fn clear_show_params(mut app App) {
 fn my_event_manager(mut ev gg.Event, mut app App) {
 	app.scroll_y = int(ev.scroll_y)
 	if app.scroll_y != 0 {
-		app.scale += f32(app.scroll_y)/32.0
+		inc := int(-1 * app.scroll_y/4)
+		app.item_list.get_next_item(inc)
+		load_image(mut app)
+		
+		//app.scale += f32(app.scroll_y)/32.0
 		//println(app.scroll_y)
 	}
 	if ev.typ == .mouse_move {
@@ -412,9 +416,10 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	if ev.typ == .mouse_move && app.sc_flag == true {
 		app.sc_x = app.mouse_x - dw/2 //app.last_sc_x
 		app.sc_y = app.mouse_y - dh/2 //app.last_sc_y
-		mod := math.sqrt(app.sc_x*app.sc_x + app.sc_y*app.sc_y) - dw/4
+		
 		//println("${app.last_sc_x},${app.last_sc_y}  ${app.sc_x},${app.sc_y} ${mod}")
-		app.scale = f32(math.pow(math.e, mod / 100 - 1))
+		//app.scale = f32(math.pow(math.e, mod / 100 - 1))
+		app.scale = f32(math.pow(math.e, (app.mouse_x - app.last_sc_x) / 100 ))
 		
 	}
 	
