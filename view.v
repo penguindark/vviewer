@@ -30,7 +30,7 @@ pub mut:
 	container_item_index int // index in the container if the item is contained
 	need_extract bool // if true need to extraction from the container
 	drawable bool // if true the image can be showed
-	n_item int = 0
+	n_item int
 }
 
 struct Item_list {
@@ -38,7 +38,7 @@ pub mut:
 	lst         []Item
 	path_sep    string
 	item_index  int = -1
-	n_item      int = 0
+	n_item      int
 }
 
 /******************************************************************************
@@ -78,7 +78,7 @@ fn is_image(x Item_type) bool {
 fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 	mut zp := szip.open(path,szip.CompressionLevel.no_compression , szip.OpenMode.read_only)?
 	n_entries := zp.total()?
-	println(n_entries)
+	//println(n_entries)
 	for index in 0..n_entries {
 		zp.open_entry_by_index(index)?
 		is_dir := zp.is_dir()?
@@ -235,14 +235,13 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 	
 	inc := if in_inc > 0 {1} else {-1}
 	mut i := il.item_index + in_inc
-	println("i0: $i")
+
 	if i < 0 {
 		i = il.lst.len + i
 	} else if i >= il.lst.len {
 		i = i % il.lst.len
 	}
   
-	println("i1: $i")
 	for {
 		if il.lst[i].drawable == true && il.lst[i].need_extract == false {
 			il.item_index = i
