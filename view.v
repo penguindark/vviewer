@@ -140,21 +140,28 @@ fn update_text_texture(sg_img C.sg_image, w int, h int, buf &byte) {
 	C.sg_update_image(sg_img, &tmp_sbc)
 }
 
-pub fn load_texture(file_name string) (C.sg_image, int, int) {
-	buffer := read_bytes_from_file(file_name)
+/******************************************************************************
+*
+* Loading functions
+*
+******************************************************************************/
+fn (mut app App) load_image_from_buffer(buf voidptr, buf_len int) (C.sg_image, int, int) {
+	// load image
 	stbi.set_flip_vertically_on_load(true)
-	img := stbi.load_from_memory(buffer.data, buffer.len) or {
-		eprintln('Texure file: [$file_name] ERROR!')
-		exit(0)
+	img := stbi.load_from_memory(buf, buf_len) or {
+		eprintln('ERROR: Can not load image from buffer.')
+		exit(1)
 	}
-	unsafe {
-		buffer.free()
-	}
-		res := create_texture(int(img.width), int(img.height), img.data)
+	res := create_texture(int(img.width), int(img.height), img.data)
 	unsafe {
 		img.free()
 	}
 	return res, int(img.width), int(img.height)
+}
+
+pub fn (mut app App) load_texture_from_file(file_name string) (C.sg_image, int, int) {
+	buffer := read_bytes_from_file(file_name)
+	return app.load_image_from_buffer(buffer.data, buffer.len)
 }
 
 pub fn load_image(mut app App) {
@@ -180,7 +187,7 @@ pub fn load_image(mut app App) {
 	file_path := app.item_list.get_file_path()
 	if file_path.len > 0 {
 		//println("${app.item_list.lst[app.item_list.item_index]} $file_path ${app.item_list.lst.len}")
-		app.texture, app.img_w, app.img_h = load_texture(file_path)
+		app.texture, app.img_w, app.img_h = app.load_texture_from_file(file_path)
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		//println("texture: [${app.img_w},${app.img_h}] ratio: ${app.img_ratio}")
 	} else {

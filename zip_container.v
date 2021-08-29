@@ -9,7 +9,6 @@
 * TODO:
 **********************************************************************/
 import szip
-import stbi
 
 fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 	println("Scanning ZIP [$path]")
@@ -84,13 +83,6 @@ fn (mut app App) load_texture_from_zip()? (C.sg_image, int, int) {
 	app.zip.read_entry_buf(app.zip_buf, app.zip_buf_size) ?
 	app.zip.close_entry()
 	
-	// load image
-	stbi.set_flip_vertically_on_load(true)
-	img := stbi.load_from_memory(app.zip_buf, zip_entry_size)?
-	res := create_texture(int(img.width), int(img.height), img.data)
-	unsafe {
-		img.free()
-	}
-	return res, int(img.width), int(img.height)
+	return app.load_image_from_buffer(app.zip_buf, zip_entry_size)
 	
 }
