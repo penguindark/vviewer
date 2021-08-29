@@ -192,8 +192,9 @@ fn (mut app App) load_texture_from_buffer(buf voidptr, buf_len int) (C.sg_image,
 	// load image
 	stbi.set_flip_vertically_on_load(true)
 	img := stbi.load_from_memory(buf, buf_len) or {
-		eprintln('ERROR: Can not load image from buffer.')
-		exit(1)
+		eprintln('ERROR: Can not load image from buffer, file: [${app.item_list.lst[app.item_list.item_index]}]')
+		return app.texture_filler, 256, 256
+		//exit(1)
 	}
 	res := create_texture(int(img.width), int(img.height), img.data)
 	unsafe {

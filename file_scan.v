@@ -327,4 +327,3 @@ fn (mut item_list Item_list ) rotate(in_inc int) {
 		item_list.lst[item_list.item_index].rotation = 0
 	}
 }
-

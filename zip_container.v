@@ -69,5 +69,4 @@ fn (mut app App) load_texture_from_zip()? (C.sg_image, int, int) {
 	app.zip.read_entry_buf(app.mem_buf, app.mem_buf_size) ?
 	app.zip.close_entry()
 	return app.load_texture_from_buffer(app.mem_buf, zip_entry_size)
-	
 }
