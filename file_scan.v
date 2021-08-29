@@ -86,6 +86,7 @@ fn is_container(x Item_type) bool {
 }
 
 fn (mut il Item_list ) scan_zip(path string, in_index int)? {
+	println("Scanning ZIP [$path]")
 	mut zp := szip.open(path,szip.CompressionLevel.no_compression , szip.OpenMode.read_only)?
 	n_entries := zp.total()?
 	//println(n_entries)
@@ -122,7 +123,7 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 }
 
 fn (mut il Item_list ) scan_folder(path string, in_index int)? {
-	//println("Scanning [$path]")
+	println("Scanning [$path]")
 	mut folder_list := []string{}
 	lst := os.ls(path)?
 	
@@ -228,10 +229,15 @@ fn (mut item_list Item_list ) get_items_list()? {
 		}
 	}
 	
+	println("Items: ${item_list.n_item}")
+	println("Scanning done.")
+	
+	
 	item_list.get_next_item(1)
 	
 	// debug call for list all teh loaded items
 	//item_list.print_list()
+	
 }
 
 /******************************************************************************
@@ -253,6 +259,7 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 		i = i % il.lst.len
 	}
   
+	start := i
 	for {
 		// for now skip containers
 		if il.lst[i].drawable == true && il.lst[i].need_extract == false {
@@ -264,6 +271,11 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 			i = il.lst.len + i
 		}	else if i >= il.lst.len {
 			i = i % il.lst.len
+		}
+		if i == start {
+			il.n_item = 0
+			il.item_index = -1
+			break
 		}
 	}
 	//println("Found: ${il.item_index}")

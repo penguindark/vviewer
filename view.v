@@ -52,7 +52,7 @@ mut:
 	last_sc_x   f32 = 0.0
 	last_sc_y   f32 = 0.0
 	
-	// loade image
+	// loaded image
 	img_w       int
 	img_h       int
 	img_ratio   f32 = 1.0
@@ -286,7 +286,10 @@ fn frame(mut app App) {
 	// tranformation
 	tr_x := app.tr_x / app.img_w
 	tr_y := -app.tr_y / app.img_h
-	rotation := app.item_list.lst[app.item_list.item_index].rotation
+	mut rotation := 0
+	if app.item_list.n_item > 0 {
+		rotation = app.item_list.lst[app.item_list.item_index].rotation
+	}
 	sgl.translate(tr_x, tr_y, 0.0)
 	sgl.scale(2.0 * app.scale, 2.0  * app.scale, 0.0)
 	sgl.rotate( 3.14159265359 * f32(rotation) / 2.0 , 0.0, 0.0, -1.0)
@@ -312,23 +315,28 @@ fn frame(mut app App) {
 	sgl.disable_texture()
 	
 	app.gg.begin()
-	num := app.item_list.lst[app.item_list.item_index].n_item
-	of_num := app.item_list.n_item
-	text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)}, ${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale} rot:${90 * rotation}"
-	mut txt_conf := gx.TextCfg{
-		color: gx.white
-		align: .left
-		size: 20
+	if app.item_list.n_item > 0 {
+		num := app.item_list.lst[app.item_list.item_index].n_item
+		of_num := app.item_list.n_item
+		text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)}, ${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale} rot:${90 * rotation}"
+		mut txt_conf := gx.TextCfg{
+			color: gx.white
+			align: .left
+			size: 20
+		}
+		app.gg.draw_text(12, 32, text, txt_conf)
+		txt_conf = gx.TextCfg{
+			color: gx.black
+			align: .left
+			size: 20
+		}
+		app.gg.draw_text(10, 30, text, txt_conf)
+		unsafe{
+			text.free()
+		}
 	}
-	app.gg.draw_text(12, 32, text, txt_conf)
-	txt_conf = gx.TextCfg{
-		color: gx.black
-		align: .left
-		size: 20
-	}
-	app.gg.draw_text(10, 30, text, txt_conf)
+	
 	app.gg.end()
-	text.free()
 	app.frame_count++
 }
 
@@ -357,8 +365,10 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	app.scroll_y = int(ev.scroll_y)
 	if app.scroll_y != 0 {
 		inc := int(-1 * app.scroll_y/4)
-		app.item_list.get_next_item(inc)
-		load_image(mut app)
+		if app.item_list.n_item > 0 {
+			app.item_list.get_next_item(inc)
+			load_image(mut app)
+		}
 		
 		//app.scale += f32(app.scroll_y)/32.0
 		//println(app.scroll_y)
@@ -428,26 +438,28 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		if ev.key_code == .escape {
 			exit(0)
 		}
-		if ev.key_code == .left {
-			app.item_list.get_next_item(-1)
-			load_image(mut app)
-		}
-		if ev.key_code == .right {
-			app.item_list.get_next_item(1)
-			load_image(mut app)
-		}
-		
-		if ev.key_code == .up {
-			app.item_list.go_to_next_container(1)
-			load_image(mut app)
-		}
-		if ev.key_code == .down {
-			app.item_list.go_to_next_container(1)
-			load_image(mut app)
-		}
-		
-		if ev.key_code == .r {
-			app.item_list.rotate(1)
+		if app.item_list.n_item > 0 {
+			if ev.key_code == .left {
+				app.item_list.get_next_item(-1)
+				load_image(mut app)
+			}
+			if ev.key_code == .right {
+				app.item_list.get_next_item(1)
+				load_image(mut app)
+			}
+			
+			if ev.key_code == .up {
+				app.item_list.go_to_next_container(1)
+				load_image(mut app)
+			}
+			if ev.key_code == .down {
+				app.item_list.go_to_next_container(1)
+				load_image(mut app)
+			}
+			
+			if ev.key_code == .r {
+				app.item_list.rotate(1)
+			}
 		}
 	}
 }
@@ -476,7 +488,8 @@ fn main() {
 	}
 	
 	app.item_list = Item_list{}
-	app.item_list.get_items_list() or {eprintln("ERROR loading files!")}
+	app.item_list.get_items_list() or {eprintln("ERROR loading files!") app.item_list = Item_list{}}
+	
 	
 	app.gg = gg.new_context(
 		width: win_width
