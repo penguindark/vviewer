@@ -335,12 +335,22 @@ fn frame(mut app App) {
 	
 	//println("$w,$h")
 	// white multiplicator for now
+/*
 	c := [f32(1.0),1.0,1.0]!
 	sgl.begin_quads()
 	sgl.v2f_t2f_c3f(-w, -h, 0, 0, c[0], c[1], c[2])
 	sgl.v2f_t2f_c3f( w, -h, 1, 0, c[0], c[1], c[2])
 	sgl.v2f_t2f_c3f( w,  h, 1, 1, c[0], c[1], c[2])
 	sgl.v2f_t2f_c3f(-w,  h, 0, 1, c[0], c[1], c[2])
+	sgl.end()
+*/
+	
+	c := [byte(255),255,255]!
+	sgl.begin_quads()
+	sgl.v2f_t2f_c3b(-w, -h, 0, 0, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3b( w, -h, 1, 0, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3b( w,  h, 1, 1, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3b(-w,  h, 0, 1, c[0], c[1], c[2])
 	sgl.end()
 	
 	sgl.disable_texture()
@@ -354,19 +364,24 @@ fn frame(mut app App) {
 			//mut path := app.item_list.get_file_path()	
 			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${path} scale: ${app.scale:.2} rotation: ${90 * rotation}"
 			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			
+			scale := app.gg.scale
+			font_size := int(20 * scale)
+			x := int(10 * scale)
+			y := int(10 * scale)
 				
 			mut txt_conf := gx.TextCfg{
 				color: gx.white
 				align: .left
-				size: 20
+				size: font_size
 			}
-			app.gg.draw_text(12, 10, text, txt_conf)
+			app.gg.draw_text(x + 2, y + 2, text, txt_conf)
 			txt_conf = gx.TextCfg{
 				color: gx.black
 				align: .left
-				size: 20
+				size: font_size
 			}
-			app.gg.draw_text(10, 8, text, txt_conf)
+			app.gg.draw_text(x, y, text, txt_conf)
 			
 			unsafe{
 				//path.free()
@@ -551,7 +566,7 @@ fn main() {
 		event_fn: my_event_manager
 		font_path: font_path
 	)
-	app.gg.scale = 1
+
 	
 	app.gg.run()
 }
