@@ -14,7 +14,6 @@ import os
 import gg
 import gx
 import math
-//import sokol.sapp
 import sokol.gfx
 import sokol.sgl
 
@@ -23,20 +22,20 @@ import stbi
 const (
 	win_width  = 800
 	win_height = 800
-	bg_color   = gx.white
+	bg_color   = gx.black
 )
 
 struct App {
 mut:
-	gg          &gg.Context
-	pip_3d      C.sgl_pipeline
+	gg             &gg.Context
+	pip_3d         C.sgl_pipeline
 	texture        C.sg_image
 	texture_filler C.sg_image
-	init_flag   bool
-	frame_count int
-	mouse_x     int = -1
-	mouse_y     int = -1
-	scroll_y    int
+	init_flag      bool
+	frame_count    int
+	mouse_x        int = -1
+	mouse_y        int = -1
+	scroll_y       int
 	
 	// translation
 	tr_flag     bool
@@ -59,7 +58,10 @@ mut:
 	
 	// item list
 	item_list   Item_list
-		
+	
+	// Text info and help
+	show_info_flag bool = true
+	show_help_flag bool
 }
 
 /******************************************************************************
@@ -263,27 +265,17 @@ fn frame(mut app App) {
 	dh := ws.height
 	
 	app.gg.begin()
-		
-/*	
-	ww := int(dh / 3) // not a bug
-	hh := int(dh / 3)
-	x0 := int(f32(dw) * 0.05)
-	// x1 := dw/2
-	y0 := 0
-	y1 := int(f32(dh) * 0.5)
-*/	
-  //app.gg.begin()
 	sgl.defaults()
 
 	// set viewport
-	//sgl.viewport(0, 0, dw, dh, true)
+	sgl.viewport(0, 0, dw, dh, true)
 	
 	// enable our pipeline
 	sgl.load_pipeline(app.pip_3d)
 	sgl.enable_texture()
 	sgl.texture(app.texture)
 	
-	// tranformation
+	// tranformations
 	tr_x := app.tr_x / app.img_w
 	tr_y := -app.tr_y / app.img_h
 	
@@ -295,12 +287,11 @@ fn frame(mut app App) {
 		sgl.rotate( 3.14159265359 * f32(rotation) / 2.0 , 0.0, 0.0, -1.0)
 	}
 	
-	
 	// draw the image
 	mut w := f32(0.5)
 	mut h := f32(0.5)
 
-	// for 90 and 270 degre invert w and h
+	// for 90 and 270 degree invert w and h
 	// rotation change image ratio, manage it
 	if rotation & 1 == 1 {
 		tmp := w
@@ -325,36 +316,40 @@ fn frame(mut app App) {
 	
 	//println("$w,$h")
 	// white multiplicator for now
-	c := [byte(0xFF),0xFF,0xFF]!
+	c := [f32(1.0),1.0,1.0]!
 	sgl.begin_quads()
-	sgl.v2f_t2f_c3b(-w, -h, 0, 0, c[0], c[1], c[2])
-	sgl.v2f_t2f_c3b( w, -h, 1, 0, c[0], c[1], c[2])
-	sgl.v2f_t2f_c3b( w,  h, 1, 1, c[0], c[1], c[2])
-	sgl.v2f_t2f_c3b(-w,  h, 0, 1, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3f(-w, -h, 0, 0, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3f( w, -h, 1, 0, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3f( w,  h, 1, 1, c[0], c[1], c[2])
+	sgl.v2f_t2f_c3f(-w,  h, 0, 1, c[0], c[1], c[2])
 	sgl.end()
 	
 	sgl.disable_texture()
 	
 	// print the info text if needed
-	app.gg.begin()
-	if app.item_list.n_item > 0 {
-		num := app.item_list.lst[app.item_list.item_index].n_item
-		of_num := app.item_list.n_item
-		text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale:.2} rot:${90 * rotation}"
-		mut txt_conf := gx.TextCfg{
-			color: gx.white
-			align: .left
-			size: 20
-		}
-		app.gg.draw_text(12, 32, text, txt_conf)
-		txt_conf = gx.TextCfg{
-			color: gx.black
-			align: .left
-			size: 20
-		}
-		app.gg.draw_text(10, 30, text, txt_conf)
-		unsafe{
-			text.free()
+	if app.show_info_flag == true {
+		app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
+		if app.item_list.n_item > 0 {
+			num := app.item_list.lst[app.item_list.item_index].n_item
+			of_num := app.item_list.n_item
+			mut path := app.item_list.get_file_path()	
+			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${path} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+				
+			mut txt_conf := gx.TextCfg{
+				color: gx.white
+				align: .left
+				size: 20
+			}
+			app.gg.draw_text(12, 10, text, txt_conf)
+			txt_conf = gx.TextCfg{
+				color: gx.black
+				align: .left
+				size: 20
+			}
+			app.gg.draw_text(10, 8, text, txt_conf)
+			unsafe{
+				text.free()
+			}
 		}
 	}
 	
@@ -457,28 +452,44 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	
 	if ev.typ == .key_down {
 		//println(ev.key_code)
+		// Exit using the ESC key
 		if ev.key_code == .escape {
 			exit(0)
 		}
+		// Toggle info text OSD
+		if ev.key_code == .i {
+			app.show_info_flag = !app.show_info_flag
+		}
+		// Toggle help text
+		if ev.key_code == .h {
+			app.show_help_flag = !app.show_help_flag
+		}
+		
+		
 		if app.item_list.n_item > 0 {
+			// show previous image
 			if ev.key_code == .left {
 				app.item_list.get_next_item(-1)
 				load_image(mut app)
 			}
+			// show next image
 			if ev.key_code == .right {
 				app.item_list.get_next_item(1)
 				load_image(mut app)
 			}
 			
+			// jump to the next container if possible
 			if ev.key_code == .up {
 				app.item_list.go_to_next_container(1)
 				load_image(mut app)
 			}
+			// jump to the previous container if possible
 			if ev.key_code == .down {
 				app.item_list.go_to_next_container(1)
 				load_image(mut app)
 			}
 			
+			// rotate the image
 			if ev.key_code == .r {
 				app.item_list.rotate(1)
 			}
@@ -494,10 +505,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 ******************************************************************************/
 // is needed for easier diagnostics on windows
 [console]
-fn main() {
-	//args := os.args[1..]
-	//println("Args: ${args}")
-	
+fn main() {	
 	//mut font_path := os.resource_abs_path(os.join_path('../assets/fonts/', 'RobotoMono-Regular.ttf'))
 	mut font_path := os.resource_abs_path('RobotoMono-Regular.ttf')
 	$if android {
@@ -509,9 +517,9 @@ fn main() {
 		gg: 0
 	}
 	
+	// Scan all the arguments to find images
 	app.item_list = Item_list{}
 	app.item_list.get_items_list() or {eprintln("ERROR loading files!") app.item_list = Item_list{}}
-	
 	
 	app.gg = gg.new_context(
 		width: win_width

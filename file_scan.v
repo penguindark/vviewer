@@ -174,6 +174,7 @@ fn (mut il Item_list ) scan_folder(path string, in_index int)? {
 }
 
 fn (il Item_list )print_list() {
+	println("================================")
 	for x in il.lst {
 		if x.i_type == .folder {
 			print("[]")
@@ -183,6 +184,8 @@ fn (il Item_list )print_list() {
 		}
 		println("${x.path} => ${x.container_index} ${x.container_item_index} ${x.name} ne:${x.need_extract}")
 	}
+	println("n_item: ${il.n_item} index: ${il.item_index}")
+	println("================================")
 }
 
 fn (mut item_list Item_list ) get_items_list()? {
@@ -204,7 +207,7 @@ fn (mut item_list Item_list ) get_items_list()? {
 		} else {
 			
 			mut item := Item{
-				path: x
+				path: ""
 				name: x
 				container_index: -1
 			}
@@ -231,13 +234,10 @@ fn (mut item_list Item_list ) get_items_list()? {
 	
 	println("Items: ${item_list.n_item}")
 	println("Scanning done.")
-	
-	
-	item_list.get_next_item(1)
-	
 	// debug call for list all teh loaded items
 	//item_list.print_list()
 	
+	item_list.get_next_item(1)
 }
 
 /******************************************************************************
@@ -245,20 +245,20 @@ fn (mut item_list Item_list ) get_items_list()? {
 * Navigation functions
 *
 ******************************************************************************/
+[inline]
+fn modulo(x int, n int) int {
+	return (x % n + n) % n
+}
+
 fn (mut il Item_list ) get_next_item(in_inc int) {
+	// if empty exit
 	if il.lst.len <= 0 || il.n_item <= 0 {
 		return
 	}
 	
 	inc := if in_inc > 0 {1} else {-1}
 	mut i := il.item_index + in_inc
-
-	if i < 0 {
-		i = il.lst.len + i
-	} else if i >= il.lst.len {
-		i = i % il.lst.len
-	}
-  
+	i = modulo(i, il.lst.len)
 	start := i
 	for {
 		// for now skip containers
@@ -267,14 +267,9 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 			break
 		}
 		i = i + inc
-		if i < 0 {
-			i = il.lst.len + i
-		}	else if i >= il.lst.len {
-			i = i % il.lst.len
-		}
+		i = modulo(i, il.lst.len)
+		// if we are in a loop break it
 		if i == start {
-			il.n_item = 0
-			il.item_index = -1
 			break
 		}
 	}
@@ -282,16 +277,13 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 }
 
 fn (mut il Item_list ) go_to_next_container(in_inc int) {
+	// if empty exit
 	if il.lst.len <= 0 || il.n_item <= 0 {
 		return
 	}
 	inc := if in_inc > 0 {1} else {-1}
 	mut i := il.item_index + in_inc
-	if i < 0 {
-		i = il.lst.len + i
-	} else if i >= il.lst.len {
-		i = i % il.lst.len
-	}
+	i = modulo(i, il.lst.len)
 	start := i
 	for {
 		// check if we found a folder
@@ -302,12 +294,8 @@ fn (mut il Item_list ) go_to_next_container(in_inc int) {
 		}
 		// continue to search
 		i = i + inc
-		if i < 0 {
-			i = il.lst.len + i
-		}	else if i >= il.lst.len {
-			i = i % il.lst.len
-		}
-		// if we made a loop exit
+		i = modulo(i, il.lst.len)
+		// if we are in a loop break it
 		if i == start {
 			break
 		}
@@ -318,7 +306,10 @@ fn (il Item_list ) get_file_path() string {
 	if il.lst.len <= 0 || il.n_item <= 0 {
 		return ""
 	}
-	return "${il.lst[il.item_index].path}${il.path_sep}${il.lst[il.item_index].name}"
+	if il.lst[il.item_index].path.len > 0 {
+		return "${il.lst[il.item_index].path}${il.path_sep}${il.lst[il.item_index].name}"
+	}
+	return il.lst[il.item_index].name
 }
 fn (mut il Item_list ) rotate(in_inc int) {
 	il.lst[il.item_index].rotation += in_inc
