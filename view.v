@@ -12,7 +12,7 @@
 import os
 import gg
 import gx
-import math
+//import math
 import sokol.gfx
 import sokol.sgl
 import stbi
@@ -326,7 +326,7 @@ fn cleanup(mut app App) {
 * Draw functions
 *
 ******************************************************************************/
-[manualfree]
+
 fn frame(mut app App) {
 	ws := gg.window_size_real_pixels()
 	mut ratio := f32(ws.width) / ws.height
@@ -412,10 +412,8 @@ fn frame(mut app App) {
 		if app.item_list.n_item > 0 {
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
-			//mut path := app.item_list.get_file_path()	
-			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${path} scale: ${app.scale:.2} rotation: ${90 * rotation}"
 			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
-			
+						
 			scale := app.gg.scale
 			font_size := int(20 * scale)
 			x := int(10 * scale)
@@ -434,11 +432,12 @@ fn frame(mut app App) {
 			}
 			app.gg.draw_text(x, y, text, txt_conf)
 			
+			/*
 			unsafe{
 				//path.free()
 				text.free()
 			}
-			
+			*/
 		}
 	}
 	
@@ -495,10 +494,10 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		clear_modifier_params(mut app)
 	}
 	
-	ws := gg.window_size_real_pixels()
+	//ws := gg.window_size_real_pixels()
 	//ratio := f32(ws.width) / ws.height
-	dw := ws.width
-	dh := ws.height
+	//dw := ws.width
+	//dh := ws.height
 	
 	// --- translate ---
 	if ev.typ == .mouse_down && ev.mouse_button == .left {
@@ -510,8 +509,8 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		app.tr_flag = false
  	}
 	if ev.typ == .mouse_move && app.tr_flag == true {
-		app.tr_x += (app.mouse_x - app.last_tr_x) * 4
-		app.tr_y += (app.mouse_y - app.last_tr_y) * 4
+		app.tr_x += (app.mouse_x - app.last_tr_x) * 2
+		app.tr_y += (app.mouse_y - app.last_tr_y) * 2
 		app.last_tr_x = app.mouse_x
 		app.last_tr_y = app.mouse_y
 		//println("Translate: ${app.tr_x} ${app.tr_y}")
@@ -527,9 +526,19 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		app.sc_flag = false
 	}
 	if ev.typ == .mouse_move && app.sc_flag == true {
-		app.sc_x = app.mouse_x - dw/2
-		app.sc_y = app.mouse_y - dh/2
-		app.scale = f32(math.pow(math.e, (app.mouse_x - app.last_sc_x) / 100 ))
+		app.sc_x = app.mouse_x - app.last_sc_x
+		app.sc_y = app.mouse_y - app.last_sc_y
+		app.last_sc_x = app.mouse_x
+		app.last_sc_y = app.mouse_y
+
+		app.scale += f32(app.sc_x / 100 )
+		if app.scale < 0.1 {
+			app.scale = 0.1
+		}
+		if app.scale > 32 {
+			app.scale = 32
+		}
+		
 	}
 	
 	if ev.typ == .key_down {
