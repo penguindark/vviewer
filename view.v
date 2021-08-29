@@ -276,7 +276,7 @@ fn frame(mut app App) {
 	sgl.defaults()
 
 	// set viewport
-	sgl.viewport(0, 0, dw, dh, true)
+	//sgl.viewport(0, 0, dw, dh, true)
 	
 	// enable our pipeline
 	sgl.load_pipeline(app.pip_3d)
@@ -286,24 +286,45 @@ fn frame(mut app App) {
 	// tranformation
 	tr_x := app.tr_x / app.img_w
 	tr_y := -app.tr_y / app.img_h
+	
+	sgl.translate(tr_x, tr_y, 0.0)
+	sgl.scale(2.0 * app.scale, 2.0  * app.scale, 0.0)
 	mut rotation := 0
 	if app.item_list.n_item > 0 {
 		rotation = app.item_list.lst[app.item_list.item_index].rotation
+		sgl.rotate( 3.14159265359 * f32(rotation) / 2.0 , 0.0, 0.0, -1.0)
 	}
-	sgl.translate(tr_x, tr_y, 0.0)
-	sgl.scale(2.0 * app.scale, 2.0  * app.scale, 0.0)
-	sgl.rotate( 3.14159265359 * f32(rotation) / 2.0 , 0.0, 0.0, -1.0)
-		
-	 
+	
+	
 	// draw the image
 	mut w := f32(0.5)
 	mut h := f32(0.5)
-	if dw >= dh {
+
+	// for 90 and 270 degre invert w and h
+	// rotation change image ratio, manage it
+	if rotation & 1 == 1 {
+		tmp := w
+		w = h
+		h = tmp
+		h /= app.img_ratio  * ratio
+	} else {
 		h /= app.img_ratio  / ratio
-	} else {		
-		w *= app.img_ratio / ratio 
 	}
+	
+	// manage image overflow in case of strange scales
+	if h > 0.5 {
+		redusction_fact := 0.5 / h
+		h = h * redusction_fact
+		w = w * redusction_fact
+	}
+	if w > 0.5 {
+		redusction_fact := 0.5 / w
+		h = h * redusction_fact
+		w = w * redusction_fact
+	}
+	
 	//println("$w,$h")
+	// white multiplicator for now
 	c := [byte(0xFF),0xFF,0xFF]!
 	sgl.begin_quads()
 	sgl.v2f_t2f_c3b(-w, -h, 0, 0, c[0], c[1], c[2])
@@ -314,11 +335,12 @@ fn frame(mut app App) {
 	
 	sgl.disable_texture()
 	
+	// print the info text if needed
 	app.gg.begin()
 	if app.item_list.n_item > 0 {
 		num := app.item_list.lst[app.item_list.item_index].n_item
 		of_num := app.item_list.n_item
-		text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)}, ${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale} rot:${90 * rotation}"
+		text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale:.2} rot:${90 * rotation}"
 		mut txt_conf := gx.TextCfg{
 			color: gx.white
 			align: .left
