@@ -514,7 +514,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			}
 			// jump to the previous container if possible
 			if ev.key_code == .down {
-				app.item_list.go_to_next_container(1)
+				app.item_list.go_to_next_container(-1)
 				load_image(mut app)
 			}
 			

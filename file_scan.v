@@ -251,9 +251,9 @@ fn (mut item_list Item_list ) go_to_next_container(in_inc int) {
 	start := i
 	for {
 		// check if we found a folder
-		if is_container(item_list.lst[i].i_type) == true {
+		if is_container(item_list.lst[i].i_type) == true && i != item_list.lst[item_list.item_index].container_index {
 			item_list.item_index = i
-			item_list.get_next_item(inc)
+			item_list.get_next_item(1)
 			break
 		}
 		// continue to search
