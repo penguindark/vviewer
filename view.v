@@ -19,6 +19,8 @@ import sokol.sgl
 
 import stbi
 
+import szip
+
 const (
 	win_width  = 800
 	win_height = 800
@@ -62,6 +64,12 @@ mut:
 	// Text info and help
 	show_info_flag bool = true
 	show_help_flag bool
+	
+	// zip container 
+	zip          &szip.Zip
+	zip_index    int = -1
+	zip_buf      voidptr
+	zip_buf_size int
 }
 
 /******************************************************************************
@@ -154,6 +162,22 @@ pub fn load_texture(file_name string) (C.sg_image, int, int) {
 pub fn load_image(mut app App) {
 	clear_show_params(mut app)
 	destroy_texture(app.texture)
+	
+	// load from .ZIP file
+	if app.item_list.is_inside_a_container() == true {
+		app.texture, app.img_w, app.img_h = app.load_texture_from_zip() or {
+			eprintln('Texure file: [${app.item_list.lst[app.item_list.item_index]}] ERROR!')
+			return
+		}
+		app.img_ratio = f32(app.img_w) / f32(app.img_h)
+		return
+	}
+	
+	if app.zip_index >= 0 {
+		app.zip_index = -1
+		app.zip.close()
+	}
+	
 	file_path := app.item_list.get_file_path()
 	if file_path.len > 0 {
 		//println("${app.item_list.lst[app.item_list.item_index]} $file_path ${app.item_list.lst.len}")
@@ -332,8 +356,10 @@ fn frame(mut app App) {
 		if app.item_list.n_item > 0 {
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
-			mut path := app.item_list.get_file_path()	
-			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${path} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			//mut path := app.item_list.get_file_path()	
+			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${path} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
 				
 			mut txt_conf := gx.TextCfg{
 				color: gx.white
@@ -347,9 +373,12 @@ fn frame(mut app App) {
 				size: 20
 			}
 			app.gg.draw_text(10, 8, text, txt_conf)
+			
 			unsafe{
+				//path.free()
 				text.free()
 			}
+			
 		}
 	}
 	
@@ -447,7 +476,6 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		//println("${app.last_sc_x},${app.last_sc_y}  ${app.sc_x},${app.sc_y} ${mod}")
 		//app.scale = f32(math.pow(math.e, mod / 100 - 1))
 		app.scale = f32(math.pow(math.e, (app.mouse_x - app.last_sc_x) / 100 ))
-		
 	}
 	
 	if ev.typ == .key_down {
@@ -497,7 +525,6 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	}
 }
 
-
 /******************************************************************************
 *
 * Main
@@ -515,6 +542,9 @@ fn main() {
 	// App init
 	mut app := &App{
 		gg: 0
+		// zip fields
+		zip: 0
+		zip_buf: 0
 	}
 	
 	// Scan all the arguments to find images

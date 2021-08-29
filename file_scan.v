@@ -1,5 +1,4 @@
 import os
-import szip
 
 /******************************************************************************
 *
@@ -83,43 +82,6 @@ fn is_container(x Item_type) bool {
 		return true
 	}
 	return false
-}
-
-fn (mut il Item_list ) scan_zip(path string, in_index int)? {
-	println("Scanning ZIP [$path]")
-	mut zp := szip.open(path,szip.CompressionLevel.no_compression , szip.OpenMode.read_only)?
-	n_entries := zp.total()?
-	//println(n_entries)
-	for index in 0..n_entries {
-		zp.open_entry_by_index(index)?
-		is_dir := zp.is_dir()?
-		name   := zp.name()
-		//size   := zp.size()
-		//println("$index ${name} ${size:10} $is_dir")
-		
-		if !is_dir {
-			ext := get_extension(name)
-			if is_image(ext) == true {
-				il.n_item += 1
-				mut item := Item{
-					need_extract: true
-					path: path
-					name: "$name" // generate a copy
-					container_index: in_index
-					container_item_index: index
-					i_type: ext
-					n_item: il.n_item
-					drawable: true
-				}
-				il.lst << item
-			}
-		}
-		
-		// IMPORTANT NOTE: don't close the zip file before heve used all the items!!
-		zp.close_entry()
-		
-	}
-	zp.close()
 }
 
 fn (mut il Item_list ) scan_folder(path string, in_index int)? {
@@ -231,11 +193,12 @@ fn (mut item_list Item_list ) get_items_list()? {
 			
 		}
 	}
+
+	// debug call for list all the loaded items
+	item_list.print_list()
 	
 	println("Items: ${item_list.n_item}")
 	println("Scanning done.")
-	// debug call for list all teh loaded items
-	//item_list.print_list()
 	
 	item_list.get_next_item(1)
 }
@@ -262,7 +225,8 @@ fn (mut il Item_list ) get_next_item(in_inc int) {
 	start := i
 	for {
 		// for now skip containers
-		if il.lst[i].drawable == true && il.lst[i].need_extract == false {
+		//if il.lst[i].drawable == true && il.lst[i].need_extract == false {
+		if il.lst[i].drawable == true {
 			il.item_index = i
 			break
 		}
@@ -311,6 +275,14 @@ fn (il Item_list ) get_file_path() string {
 	}
 	return il.lst[il.item_index].name
 }
+
+fn (il Item_list ) is_inside_a_container() bool {
+	if il.lst.len <= 0 || il.n_item <= 0 {
+		return false
+	}
+	return il.lst[il.item_index].need_extract
+}
+
 fn (mut il Item_list ) rotate(in_inc int) {
 	il.lst[il.item_index].rotation += in_inc
 	if il.lst[il.item_index].rotation >= 4 {
