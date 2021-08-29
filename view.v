@@ -66,34 +66,10 @@ mut:
 	// zip container 
 	zip          &szip.Zip // pointer to the szip structure
 	zip_index    int = -1  // index of the zip contaire item
-	zip_buf      voidptr   // buffer used to expand the zip items
-	zip_buf_size int       // size of the buffer
-}
-
-/******************************************************************************
-*
-* Utility functions
-*
-******************************************************************************/
-// read a file as []byte
-pub fn read_bytes_from_file(file_path string) []byte {
-	mut path := ''
-	mut buffer := []byte{}
-	$if android {
-		path = 'models/' + file_path
-		buffer = os.read_apk_asset(path) or {
-			eprintln('Texure file: [$path] NOT FOUND!')
-			exit(0)
-		}
-	} $else {
-		path = file_path
-		//path = os.resource_abs_path('assets/models/' + file_path)
-		buffer = os.read_bytes(path) or {
-			eprintln('Texure file: [$path] NOT FOUND!')
-			exit(0)
-		}
-	}
-	return buffer
+		
+	// memory buf
+	mem_buf        voidptr   // buffer used to load items from files
+	mem_buf_size   int       // size of the buffer
 }
 
 /******************************************************************************
@@ -142,10 +118,77 @@ fn update_text_texture(sg_img C.sg_image, w int, h int, buf &byte) {
 
 /******************************************************************************
 *
+* Memory buffer
+*
+******************************************************************************/
+[inline]
+fn (mut app App) resize_buf_if_needed(in_size int) {
+	// manage the memory buffer
+	if app.mem_buf_size < in_size {
+		println("Managing FILE memory buffer, allocated [${in_size}]Bytes")
+		// free previous buffer if any exist
+		if app.mem_buf_size > 0 {
+			unsafe{
+				free(app.mem_buf)
+			}
+		}
+		// allocate the memory
+		unsafe {
+			app.mem_buf = malloc(int(in_size))
+			app.mem_buf_size = int(in_size)
+		}
+	}
+}
+
+/******************************************************************************
+*
 * Loading functions
 *
 ******************************************************************************/
-fn (mut app App) load_image_from_buffer(buf voidptr, buf_len int) (C.sg_image, int, int) {
+
+// read_bytes from file in `path` in the memory buffer of app.
+[manualfree]
+fn (mut app App) read_bytes(path string) bool {
+	mut fp := os.vfopen(path, 'rb') or {
+		eprintln("ERROR: Can not load [$path] in the memory buffer.")
+		return false
+	}
+	defer {
+		C.fclose(fp)
+	}
+	cseek := C.fseek(fp, 0, C.SEEK_END)
+	if cseek != 0 {
+		eprintln("ERROR: Can not load [$path] can not seek in the file.")
+		return false
+	}
+	fsize := C.ftell(fp)
+	if fsize < 0 {
+		eprintln("ERROR: Can not load [$path] file size is 0.")
+		return false
+	}
+	C.rewind(fp)
+	
+	app.resize_buf_if_needed(int(fsize))
+		
+	nr_read_elements := int(C.fread(app.mem_buf, fsize, 1, fp))
+	if nr_read_elements == 0 && fsize > 0 {
+		eprintln("ERROR: Can not read the file [$path] in the memory buffer.")
+		return false
+	}
+	return true
+}
+
+// read a file as []byte
+pub fn read_bytes_from_file(file_path string) []byte {
+	mut buffer := []byte{}
+	buffer = os.read_bytes(file_path) or {
+		eprintln('Texure file: [$file_path] NOT FOUND!')
+		exit(0)
+	}
+	return buffer
+}
+
+fn (mut app App) load_texture_from_buffer(buf voidptr, buf_len int) (C.sg_image, int, int) {
 	// load image
 	stbi.set_flip_vertically_on_load(true)
 	img := stbi.load_from_memory(buf, buf_len) or {
@@ -160,8 +203,9 @@ fn (mut app App) load_image_from_buffer(buf voidptr, buf_len int) (C.sg_image, i
 }
 
 pub fn (mut app App) load_texture_from_file(file_name string) (C.sg_image, int, int) {
-	buffer := read_bytes_from_file(file_name)
-	return app.load_image_from_buffer(buffer.data, buffer.len)
+	//buffer := read_bytes_from_file(file_name)
+	app.read_bytes(file_name)
+	return app.load_texture_from_buffer(app.mem_buf, app.mem_buf_size)
 }
 
 pub fn load_image(mut app App) {
@@ -403,7 +447,7 @@ fn frame(mut app App) {
 
 /******************************************************************************
 *
-* event
+* events management
 *
 ******************************************************************************/
 fn clear_modifier_params(mut app App) {
@@ -465,8 +509,8 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		app.tr_flag = false
  	}
 	if ev.typ == .mouse_move && app.tr_flag == true {
-		app.tr_x += (app.mouse_x - app.last_tr_x) * 2
-		app.tr_y += (app.mouse_y - app.last_tr_y) * 2
+		app.tr_x += (app.mouse_x - app.last_tr_x) * 4
+		app.tr_y += (app.mouse_y - app.last_tr_y) * 4
 		app.last_tr_x = app.mouse_x
 		app.last_tr_y = app.mouse_y
 		//println("Translate: ${app.tr_x} ${app.tr_y}")
@@ -489,8 +533,8 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	
 	if ev.typ == .key_down {
 		//println(ev.key_code)
-		// Exit using the ESC key
-		if ev.key_code == .escape {
+		// Exit using the ESC key or Q key
+		if ev.key_code == .escape || ev.key_code == .q {
 			exit(0)
 		}
 		// Toggle info text OSD
@@ -502,6 +546,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			app.show_help_flag = !app.show_help_flag
 		}
 		
+		// do actions only if there are items in the list
 		if app.item_list.n_item > 0 {
 			// show previous image
 			if ev.key_code == .left {
@@ -544,7 +589,7 @@ fn main() {
 	//mut font_path := os.resource_abs_path(os.join_path('../assets/fonts/', 'RobotoMono-Regular.ttf'))
 	font_name := 'RobotoMono-Regular.ttf'
 	font_path := os.join_path(os.temp_dir(), font_name)
-	println("Temp path for the font file: [$font_path]")
+	println("Temporary path for the font file: [$font_path]")
 	
 	// if the font doesn't exist crate it from the ebedded one
 	if os.exists(font_path) == false {
@@ -555,24 +600,20 @@ fn main() {
 			exit(1)
 		}
 	}
-	/*
-	mut font_path := os.resource_abs_path('RobotoMono-Regular.ttf')
-	$if android {
-		font_path = 'fonts/RobotoMono-Regular.ttf'
-	}
-	*/
 	
 	// App init
 	mut app := &App{
 		gg: 0
 		// zip fields
 		zip: 0
-		zip_buf: 0
 	}
 	
 	// Scan all the arguments to find images
 	app.item_list = Item_list{}
-	app.item_list.get_items_list() or {eprintln("ERROR loading files!") app.item_list = Item_list{}}
+	app.item_list.get_items_list() or {
+		eprintln("ERROR loading files!") 
+		app.item_list = Item_list{}
+	}
 	
 	app.gg = gg.new_context(
 		width: win_width
@@ -588,6 +629,5 @@ fn main() {
 		font_path: font_path
 	)
 
-	
 	app.gg.run()
 }

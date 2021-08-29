@@ -47,7 +47,6 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 	zp.close()
 }
 
-
 fn (mut app App) load_texture_from_zip()? (C.sg_image, int, int) {
 	item := app.item_list.lst[app.item_list.item_index]
 	//println("Load from zip [${item.path}]")
@@ -65,24 +64,10 @@ fn (mut app App) load_texture_from_zip()? (C.sg_image, int, int) {
 	app.zip.open_entry_by_index(item.container_item_index) ?
 	zip_entry_size := int(item.size)
 	
-	if app.zip_buf_size < zip_entry_size {
-		println("Managing .ZIP memory buffer, allocated [${zip_entry_size}]Bytes")
-		// free previous biffer if any exist
-		if app.zip_buf_size > 0 {
-			unsafe{
-				free(app.zip_buf)
-			}
-		}
-		// alloc the memory
-		unsafe {
-			app.zip_buf = malloc(zip_entry_size)
-			app.zip_buf_size = zip_entry_size
-		}
-	}
+	app.resize_buf_if_needed(zip_entry_size)
 	
-	app.zip.read_entry_buf(app.zip_buf, app.zip_buf_size) ?
+	app.zip.read_entry_buf(app.mem_buf, app.mem_buf_size) ?
 	app.zip.close_entry()
-	
-	return app.load_image_from_buffer(app.zip_buf, zip_entry_size)
+	return app.load_texture_from_buffer(app.mem_buf, zip_entry_size)
 	
 }
