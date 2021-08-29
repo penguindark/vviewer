@@ -8,7 +8,6 @@
 *
 * TODO:
 **********************************************************************/
-import os
 import szip
 import stbi
 
@@ -21,7 +20,7 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 		zp.open_entry_by_index(index)?
 		is_dir := zp.is_dir()?
 		name   := zp.name()
-		//size   := zp.size()
+		size   := zp.size()
 		//println("$index ${name} ${size:10} $is_dir")
 		
 		if !is_dir {
@@ -37,12 +36,12 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 					i_type: ext
 					n_item: il.n_item
 					drawable: true
+					size: size
 				}
 				il.lst << item
 			}
 		}
-		
-		// IMPORTANT NOTE: don't close the zip file before heve used all the items!!
+		// IMPORTANT NOTE: don't close the zip entry before we have used all the items!!
 		zp.close_entry()
 		
 	}
@@ -65,10 +64,10 @@ fn (mut app App) load_texture_from_zip()? (C.sg_image, int, int) {
 	}
 	//println("Now get the image")
 	app.zip.open_entry_by_index(item.container_item_index) ?
-	zip_entry_size := int(app.zip.size())
+	zip_entry_size := int(item.size)
 	
 	if app.zip_buf_size < zip_entry_size {
-		//println("Manage the buffer, allocate [${zip_entry_size}]Bytes")
+		println("Managing .ZIP memory buffer, allocated [${zip_entry_size}]Bytes")
 		// free previous biffer if any exist
 		if app.zip_buf_size > 0 {
 			unsafe{
@@ -89,6 +88,9 @@ fn (mut app App) load_texture_from_zip()? (C.sg_image, int, int) {
 	stbi.set_flip_vertically_on_load(true)
 	img := stbi.load_from_memory(app.zip_buf, zip_entry_size)?
 	res := create_texture(int(img.width), int(img.height), img.data)
+	unsafe {
+		img.free()
+	}
 	return res, int(img.width), int(img.height)
 	
 }

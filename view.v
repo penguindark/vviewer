@@ -16,15 +16,14 @@ import gx
 import math
 import sokol.gfx
 import sokol.sgl
-
 import stbi
-
 import szip
 
 const (
 	win_width  = 800
 	win_height = 800
 	bg_color   = gx.black
+	pi_2       = 3.14159265359 / 2.0
 )
 
 struct App {
@@ -66,10 +65,10 @@ mut:
 	show_help_flag bool
 	
 	// zip container 
-	zip          &szip.Zip
-	zip_index    int = -1
-	zip_buf      voidptr
-	zip_buf_size int
+	zip          &szip.Zip // pointer to the szip structure
+	zip_index    int = -1  // index of the zip contaire item
+	zip_buf      voidptr   // buffer used to expand the zip items
+	zip_buf_size int       // size of the buffer
 }
 
 /******************************************************************************
@@ -160,7 +159,7 @@ pub fn load_texture(file_name string) (C.sg_image, int, int) {
 }
 
 pub fn load_image(mut app App) {
-	clear_show_params(mut app)
+	clear_modifier_params(mut app)
 	destroy_texture(app.texture)
 	
 	// load from .ZIP file
@@ -172,7 +171,8 @@ pub fn load_image(mut app App) {
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		return
 	}
-	
+
+	// if we are out of the zip, close it
 	if app.zip_index >= 0 {
 		app.zip_index = -1
 		app.zip.close()
@@ -200,16 +200,7 @@ pub fn load_image(mut app App) {
 ******************************************************************************/
 fn app_init(mut app App) {
 	app.init_flag = true
-/*
-	// set max vertices,
-	// for a large number of the same type of object it is better use the instances!!
-	desc := sapp.create_desc()
-	gfx.setup(&desc)
-	sgl_desc := C.sgl_desc_t{
-		max_vertices: 50 * 65536
-	}
-	sgl.setup(&sgl_desc)
-*/
+
 	// 3d pipeline
 	mut pipdesc := C.sg_pipeline_desc{}
 	unsafe { C.memset(&pipdesc, 0, sizeof(pipdesc)) }
@@ -264,11 +255,14 @@ fn app_init(mut app App) {
 		}
 	}
 	unsafe {
+		// filler texture
 		app.texture_filler = create_texture(w, h, tmp_txt)
+		// load the default texture with the chess board
 		app.texture = create_texture(w, h, tmp_txt)
 		free(tmp_txt)
 	}
 	
+	// init done, load the first image if any
 	load_image(mut app)
 }
 
@@ -299,16 +293,17 @@ fn frame(mut app App) {
 	sgl.enable_texture()
 	sgl.texture(app.texture)
 	
-	// tranformations
+	// translation
 	tr_x := app.tr_x / app.img_w
 	tr_y := -app.tr_y / app.img_h
-	
 	sgl.translate(tr_x, tr_y, 0.0)
+	// scaling/zoom
 	sgl.scale(2.0 * app.scale, 2.0  * app.scale, 0.0)
+	// roation
 	mut rotation := 0
 	if app.item_list.n_item > 0 {
 		rotation = app.item_list.lst[app.item_list.item_index].rotation
-		sgl.rotate( 3.14159265359 * f32(rotation) / 2.0 , 0.0, 0.0, -1.0)
+		sgl.rotate( pi_2 * f32(rotation) , 0.0, 0.0, -1.0)
 	}
 	
 	// draw the image
@@ -358,7 +353,6 @@ fn frame(mut app App) {
 			of_num := app.item_list.n_item
 			//mut path := app.item_list.get_file_path()	
 			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${path} scale: ${app.scale:.2} rotation: ${90 * rotation}"
-			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.get_file_path()} scale: ${app.scale:.2} rotation: ${90 * rotation}"
 			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
 				
 			mut txt_conf := gx.TextCfg{
@@ -391,7 +385,7 @@ fn frame(mut app App) {
 * event
 *
 ******************************************************************************/
-fn clear_show_params(mut app App) {
+fn clear_modifier_params(mut app App) {
 	app.scale = 1.0
 	
 	app.sc_flag = false
@@ -408,6 +402,7 @@ fn clear_show_params(mut app App) {
 }
 
 fn my_event_manager(mut ev gg.Event, mut app App) {
+	// navigation using the mouse wheel
 	app.scroll_y = int(ev.scroll_y)
 	if app.scroll_y != 0 {
 		inc := int(-1 * app.scroll_y/4)
@@ -415,10 +410,8 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			app.item_list.get_next_item(inc)
 			load_image(mut app)
 		}
-		
-		//app.scale += f32(app.scroll_y)/32.0
-		//println(app.scroll_y)
 	}
+	
 	if ev.typ == .mouse_move {
 		app.mouse_x = int(ev.mouse_x)
 		app.mouse_y = int(ev.mouse_y)
@@ -433,7 +426,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	
 	// clear all parameters
 	if ev.typ == .mouse_down && ev.mouse_button == .middle {
-		clear_show_params(mut app)
+		clear_modifier_params(mut app)
 	}
 	
 	ws := gg.window_size_real_pixels()
@@ -441,7 +434,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	dw := ws.width
 	dh := ws.height
 	
-	// translate
+	// --- translate ---
 	if ev.typ == .mouse_down && ev.mouse_button == .left {
 		app.tr_flag = true
 		app.last_tr_x = app.mouse_x
@@ -449,7 +442,6 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
  	}
 	if ev.typ == .mouse_up && ev.mouse_button == .left && app.tr_flag == true {
 		app.tr_flag = false
-		
  	}
 	if ev.typ == .mouse_move && app.tr_flag == true {
 		app.tr_x += (app.mouse_x - app.last_tr_x) * 2
@@ -459,22 +451,18 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		//println("Translate: ${app.tr_x} ${app.tr_y}")
 	}
 	
-	// scaling
+	// --- scaling ---
 	if ev.typ == .mouse_down && ev.mouse_button == .right && app.sc_flag == false {
 		app.sc_flag = true
 		app.last_sc_x = app.mouse_x
 		app.last_sc_y = app.mouse_y
-		//println("INIT ${app.last_sc_x},${app.last_sc_y}")
  	}
 	if ev.typ == .mouse_up && ev.mouse_button == .right && app.sc_flag == true {
 		app.sc_flag = false
 	}
 	if ev.typ == .mouse_move && app.sc_flag == true {
-		app.sc_x = app.mouse_x - dw/2 //app.last_sc_x
-		app.sc_y = app.mouse_y - dh/2 //app.last_sc_y
-		
-		//println("${app.last_sc_x},${app.last_sc_y}  ${app.sc_x},${app.sc_y} ${mod}")
-		//app.scale = f32(math.pow(math.e, mod / 100 - 1))
+		app.sc_x = app.mouse_x - dw/2
+		app.sc_y = app.mouse_y - dh/2
 		app.scale = f32(math.pow(math.e, (app.mouse_x - app.last_sc_x) / 100 ))
 	}
 	
@@ -492,7 +480,6 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		if ev.key_code == .h {
 			app.show_help_flag = !app.show_help_flag
 		}
-		
 		
 		if app.item_list.n_item > 0 {
 			// show previous image
