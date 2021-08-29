@@ -1,13 +1,12 @@
 /**********************************************************************
 *
-* Sokol image viewer demo
+* simple Picture Viewer V. 0.7
 *
 * Copyright (c) 2021 Dario Deledda. All rights reserved.
 * Use of this source code is governed by an MIT license
 * that can be found in the LICENSE file.
 *
 * TODO:
-* - add instancing
 * - add an example with shaders
 **********************************************************************/
 import os
@@ -536,10 +535,25 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 [console]
 fn main() {	
 	//mut font_path := os.resource_abs_path(os.join_path('../assets/fonts/', 'RobotoMono-Regular.ttf'))
+	font_name := 'RobotoMono-Regular.ttf'
+	font_path := os.join_path(os.temp_dir(), font_name)
+	println("Temp path for the font file: [$font_path]")
+	
+	// if the font doesn't exist crate it from the ebedded one
+	if os.exists(font_path) == false {
+		println("Write font [$font_name] in temp folder.")
+		embedded_file := $embed_file('RobotoMono-Regular.ttf')
+		os.write_file(font_path, embedded_file.to_string()) or {
+			eprintln("ERROR: not able to write font file to [$font_path]")
+			exit(1)
+		}
+	}
+	/*
 	mut font_path := os.resource_abs_path('RobotoMono-Regular.ttf')
 	$if android {
 		font_path = 'fonts/RobotoMono-Regular.ttf'
 	}
+	*/
 	
 	// App init
 	mut app := &App{
@@ -557,7 +571,7 @@ fn main() {
 		width: win_width
 		height: win_height
 		create_window: true
-		window_title: 'Image viewer'
+		window_title: 'V Image viewer 0.7'
 		user_data: app
 		bg_color: bg_color
 		frame_fn: frame
