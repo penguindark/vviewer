@@ -24,6 +24,7 @@ const (
 	win_height = 800
 	bg_color   = gx.black
 	pi_2       = 3.14159265359 / 2.0
+	uv         = [f32(0),0,1,0,1,1,0,1]!  // used for zoom icon during rotations
 )
 
 struct App {
@@ -390,16 +391,6 @@ fn frame(mut app App) {
 	
 	//println("$w,$h")
 	// white multiplicator for now
-/*
-	c := [f32(1.0),1.0,1.0]!
-	sgl.begin_quads()
-	sgl.v2f_t2f_c3f(-w, -h, 0, 0, c[0], c[1], c[2])
-	sgl.v2f_t2f_c3f( w, -h, 1, 0, c[0], c[1], c[2])
-	sgl.v2f_t2f_c3f( w,  h, 1, 1, c[0], c[1], c[2])
-	sgl.v2f_t2f_c3f(-w,  h, 0, 1, c[0], c[1], c[2])
-	sgl.end()
-*/
-	
 	mut c := [byte(255),255,255]!
 	sgl.begin_quads()
 	sgl.v2f_t2f_c3b(-w, -h, 0, 0, c[0], c[1], c[2])
@@ -408,42 +399,51 @@ fn frame(mut app App) {
 	sgl.v2f_t2f_c3b(-w,  h, 0, 1, c[0], c[1], c[2])
 	sgl.end()
 	
+	// restore all the transformations
 	sgl.pop_matrix()
 	
 	
 	// Zoom icon
-	
 	if app.show_info_flag == true && app.scale > 1 {
 		mut bw := f32(0.25)
-		mut bh := f32(0.25 / app.img_ratio * ratio)
+		mut bh := f32(0.25 / app.img_ratio)
 		mut bx := f32(1 - bw)
 		mut by := f32(1 - bh)
 		
+		// manage the rotations
+		if rotation & 1 == 1 {
+			bw,bh = bh,bw
+			bx,by = by,bx
+		}
+		r := rotation << 1
+		
+		bh *= ratio
+		
+		// draw the zoom icon
 		sgl.begin_quads()
-		sgl.v2f_t2f_c3b(bx     , by     , 0, 0, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx + bw, by     , 1, 0, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx + bw, by + bh, 1, 1, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx     , by + bh, 0, 1, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx     , by     , uv[(0 + r) & 7] , uv[(1 + r) & 7], c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx + bw, by     , uv[(2 + r) & 7] , uv[(3 + r) & 7], c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx + bw, by + bh, uv[(4 + r) & 7] , uv[(5 + r) & 7], c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx     , by + bh, uv[(6 + r) & 7] , uv[(7 + r) & 7], c[0], c[1], c[2])
 		sgl.end()
 		
+		// draw the zoom rectangle
 		sgl.disable_texture()
-		
+			
 		bw_old := bw
 		bh_old := bh
 		bw /=  app.scale
 		bh /=  app.scale
-		
 		bx += (bw_old - bw) / 2 - (tr_x / 8) / app.scale
 		by += (bh_old - bh) / 2 - (tr_y / 8) / app.scale
 		
-		
 		c = [byte(255),255,0]! // yellow
 		sgl.begin_line_strip()
-		sgl.v2f_t2f_c3b(bx     , by     , 0, 0, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx + bw, by     , 1, 0, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx + bw, by + bh, 1, 1, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx     , by + bh, 0, 1, c[0], c[1], c[2])
-		sgl.v2f_t2f_c3b(bx     , by     , 0, 0, c[0], c[1], c[2])
+		sgl.v2f_c3b(bx     , by     , c[0], c[1], c[2])
+		sgl.v2f_c3b(bx + bw, by     , c[0], c[1], c[2])
+		sgl.v2f_c3b(bx + bw, by + bh, c[0], c[1], c[2])
+		sgl.v2f_c3b(bx     , by + bh, c[0], c[1], c[2])
+		sgl.v2f_c3b(bx     , by     , c[0], c[1], c[2])
 		sgl.end()
 	}
 	
