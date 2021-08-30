@@ -91,7 +91,7 @@ fn create_texture(w int, h int, buf &u8) C.sg_image {
 		label: &byte(0)
 		d3d11_texture: 0
 	}
-	// commen if .dynamic is enabled
+	// comment if .dynamic is enabled
 	img_desc.data.subimage[0][0] = C.sg_range{
 		ptr: buf
 		size: size_t(sz)
@@ -105,7 +105,7 @@ fn destroy_texture(sg_img C.sg_image) {
 	C.sg_destroy_image(sg_img)
 }
 
-// Use only if usage: .dynamic is enabled
+// Use only if: .dynamic is enabled
 fn update_text_texture(sg_img C.sg_image, w int, h int, buf &byte) {
 	sz := w * h * 4
 	mut tmp_sbc := C.sg_image_data{}
@@ -326,9 +326,12 @@ fn cleanup(mut app App) {
 * Draw functions
 *
 ******************************************************************************/
-
+[manualfree]
 fn frame(mut app App) {
 	ws := gg.window_size_real_pixels()
+	if ws.width <= 0 || ws.height <= 0 {
+		return
+	}
 	mut ratio := f32(ws.width) / ws.height
 	dw := ws.width
 	dh := ws.height
@@ -432,12 +435,10 @@ fn frame(mut app App) {
 			}
 			app.gg.draw_text(x, y, text, txt_conf)
 			
-			/*
 			unsafe{
-				//path.free()
 				text.free()
 			}
-			*/
+			
 		}
 	}
 	
