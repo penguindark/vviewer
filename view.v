@@ -68,8 +68,8 @@ mut:
 	zip          &szip.Zip // pointer to the szip structure
 	zip_index    int = -1  // index of the zip contaire item
 		
-	// memory buf
-	mem_buf        voidptr   // buffer used to load items from files
+	// memory buffer
+	mem_buf        voidptr   // buffer used to load items from files/containers
 	mem_buf_size   int       // size of the buffer
 }
 
@@ -146,12 +146,11 @@ fn (mut app App) resize_buf_if_needed(in_size int) {
 * Loading functions
 *
 ******************************************************************************/
-
 // read_bytes from file in `path` in the memory buffer of app.
 [manualfree]
 fn (mut app App) read_bytes(path string) bool {
 	mut fp := os.vfopen(path, 'rb') or {
-		eprintln("ERROR: Can not load [$path] in the memory buffer.")
+		eprintln("ERROR: Can not open the file [$path].")
 		return false
 	}
 	defer {
@@ -159,12 +158,12 @@ fn (mut app App) read_bytes(path string) bool {
 	}
 	cseek := C.fseek(fp, 0, C.SEEK_END)
 	if cseek != 0 {
-		eprintln("ERROR: Can not load [$path] can not seek in the file.")
+		eprintln("ERROR: Can not seek in the file [$path].")
 		return false
 	}
 	fsize := C.ftell(fp)
 	if fsize < 0 {
-		eprintln("ERROR: Can not load [$path] file size is 0.")
+		eprintln("ERROR: File [$path] has size is 0.")
 		return false
 	}
 	C.rewind(fp)
@@ -183,7 +182,7 @@ fn (mut app App) read_bytes(path string) bool {
 pub fn read_bytes_from_file(file_path string) []byte {
 	mut buffer := []byte{}
 	buffer = os.read_bytes(file_path) or {
-		eprintln('Texure file: [$file_path] NOT FOUND!')
+		eprintln('ERROR: Texure file: [$file_path] NOT FOUND.')
 		exit(0)
 	}
 	return buffer
@@ -193,7 +192,7 @@ fn (mut app App) load_texture_from_buffer(buf voidptr, buf_len int) (C.sg_image,
 	// load image
 	stbi.set_flip_vertically_on_load(true)
 	img := stbi.load_from_memory(buf, buf_len) or {
-		eprintln('ERROR: Can not load image from buffer, file: [${app.item_list.lst[app.item_list.item_index]}]')
+		eprintln('ERROR: Can not load image from buffer, file: [${app.item_list.lst[app.item_list.item_index]}].')
 		return app.texture_filler, 256, 256
 		//exit(1)
 	}
@@ -217,7 +216,7 @@ pub fn load_image(mut app App) {
 	// load from .ZIP file
 	if app.item_list.is_inside_a_container() == true {
 		app.texture, app.img_w, app.img_h = app.load_texture_from_zip() or {
-			eprintln('Texure file: [${app.item_list.lst[app.item_list.item_index]}] ERROR!')
+			eprintln('ERROR: Can not load image from .ZIP file [${app.item_list.lst[app.item_list.item_index]}].')
 			return
 		}
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
@@ -351,6 +350,7 @@ fn frame(mut app App) {
 	// translation
 	tr_x := app.tr_x / app.img_w
 	tr_y := -app.tr_y / app.img_h
+	sgl.push_matrix()
 	sgl.translate(tr_x, tr_y, 0.0)
 	// scaling/zoom
 	sgl.scale(2.0 * app.scale, 2.0  * app.scale, 0.0)
@@ -378,14 +378,14 @@ fn frame(mut app App) {
 	
 	// manage image overflow in case of strange scales
 	if h > 0.5 {
-		redusction_fact := 0.5 / h
-		h = h * redusction_fact
-		w = w * redusction_fact
+		reduction_factor := 0.5 / h
+		h = h * reduction_factor
+		w = w * reduction_factor
 	}
 	if w > 0.5 {
-		redusction_fact := 0.5 / w
-		h = h * redusction_fact
-		w = w * redusction_fact
+		reduction_factor := 0.5 / w
+		h = h * reduction_factor
+		w = w * reduction_factor
 	}
 	
 	//println("$w,$h")
@@ -400,13 +400,53 @@ fn frame(mut app App) {
 	sgl.end()
 */
 	
-	c := [byte(255),255,255]!
+	mut c := [byte(255),255,255]!
 	sgl.begin_quads()
 	sgl.v2f_t2f_c3b(-w, -h, 0, 0, c[0], c[1], c[2])
 	sgl.v2f_t2f_c3b( w, -h, 1, 0, c[0], c[1], c[2])
 	sgl.v2f_t2f_c3b( w,  h, 1, 1, c[0], c[1], c[2])
 	sgl.v2f_t2f_c3b(-w,  h, 0, 1, c[0], c[1], c[2])
 	sgl.end()
+	
+	sgl.pop_matrix()
+	
+	
+	// Zoom icon
+	
+	if app.show_info_flag == true && app.scale > 1 {
+		mut bw := f32(0.25)
+		mut bh := f32(0.25 / app.img_ratio * ratio)
+		mut bx := f32(1 - bw)
+		mut by := f32(1 - bh)
+		
+		sgl.begin_quads()
+		sgl.v2f_t2f_c3b(bx     , by     , 0, 0, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx + bw, by     , 1, 0, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx + bw, by + bh, 1, 1, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx     , by + bh, 0, 1, c[0], c[1], c[2])
+		sgl.end()
+		
+		sgl.disable_texture()
+		
+		bw_old := bw
+		bh_old := bh
+		bw /=  app.scale
+		bh /=  app.scale
+		
+		bx += (bw_old - bw) / 2 - (tr_x / 8) / app.scale
+		by += (bh_old - bh) / 2 - (tr_y / 8) / app.scale
+		
+		
+		c = [byte(255),255,0]! // yellow
+		sgl.begin_line_strip()
+		sgl.v2f_t2f_c3b(bx     , by     , 0, 0, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx + bw, by     , 1, 0, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx + bw, by + bh, 1, 1, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx     , by + bh, 0, 1, c[0], c[1], c[2])
+		sgl.v2f_t2f_c3b(bx     , by     , 0, 0, c[0], c[1], c[2])
+		sgl.end()
+	}
+	
 	
 	sgl.disable_texture()
 	

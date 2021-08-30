@@ -29,7 +29,7 @@ fn (mut il Item_list ) scan_zip(path string, in_index int)? {
 				mut item := Item{
 					need_extract: true
 					path: path
-					name: "$name" // generate a copy
+					name: name.clone()
 					container_index: in_index
 					container_item_index: index
 					i_type: ext

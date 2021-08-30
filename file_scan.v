@@ -10,15 +10,16 @@
 **********************************************************************/
 import os
 
+// STBI supported format
 //        STBI_NO_JPEG *
 //        STBI_NO_PNG  *
 //        STBI_NO_BMP  *
 //        STBI_NO_PSD
 //        STBI_NO_TGA  *
 //        STBI_NO_GIF  *
-//        STBI_NO_HDR
-//        STBI_NO_PIC
-//        STBI_NO_PNM   *
+//        STBI_NO_HDR  *
+//        STBI_NO_PIC  *
+//        STBI_NO_PNM  *
 
 /******************************************************************************
 *
@@ -39,29 +40,31 @@ enum Item_type {
 	tga
 	ppm
 	pgm
+	pic
+	hdr
 }
 
 pub 
 struct Item {
 pub mut:
-	path string
-	name string
-	size u64
-	i_type Item_type = .file
-	container_index int  // used if the item is in a container (.zip, .rar, etc)
-	container_item_index int // index in the container if the item is contained
-	need_extract bool // if true need to extraction from the container
-	drawable bool // if true the image can be showed
-	n_item int
-	rotation int  // number of rotation of PI/2
+	path                 string
+	name                 string
+	size                 u64
+	i_type               Item_type = .file
+	container_index      int    // used if the item is in a container (.zip, .rar, etc)
+	container_item_index int    // index in the container if the item is contained
+	need_extract         bool   // if true need to extraction from the container
+	drawable             bool   // if true the image can be showed
+	n_item               int    // 
+	rotation             int    // number of rotation of PI/2
 }
 
 struct Item_list {
 pub mut:
 	lst         []Item
 	path_sep    string
-	item_index  int = -1
-	n_item      int
+	item_index  int = -1  // image currently shown
+	n_item      int       // number of images scanned
 }
 
 /******************************************************************************
@@ -70,10 +73,19 @@ pub mut:
 *
 ******************************************************************************/
 [inline]
+fn modulo(x int, n int) int {
+	return (x % n + n) % n
+}
+
+[inline]
 fn get_extension(x string) Item_type {
+	// 4 char extension check
 	if x.len > 4 {
 		ext4 := x[x.len-4..].to_lower()
 		match ext4 {
+			// containers
+			'.zip' { return .zip }
+			// graphic formats
 			'.jpg' { return .jpg }
 			'.png' { return .png }
 			'.bmp' { return .bmp }
@@ -81,13 +93,14 @@ fn get_extension(x string) Item_type {
 			'.tga' { return .tga }
 			'.ppm' { return .ppm }
 			'.pgm' { return .pgm }
-			// containers
-			'.zip' { return .zip }
+			'.pic' { return .pic }
+			'.hdr' { return .hdr }
 			else{}
 		}
 	}
+	// 5 char extension check
 	if x.len > 5 {
-		ext5 := x[x.len-4..].to_lower()
+		ext5 := x[x.len-5..].to_lower()
 		if ext5 == '.jpeg' {
 			{ return .jpg }
 		}
@@ -257,11 +270,6 @@ fn (mut item_list Item_list ) get_items_list()? {
 * Navigation functions
 *
 ******************************************************************************/
-[inline]
-fn modulo(x int, n int) int {
-	return (x % n + n) % n
-}
-
 fn (mut item_list Item_list ) get_next_item(in_inc int) {
 	// if empty exit
 	if item_list.lst.len <= 0 || item_list.n_item <= 0 {
@@ -273,8 +281,6 @@ fn (mut item_list Item_list ) get_next_item(in_inc int) {
 	i = modulo(i, item_list.lst.len)
 	start := i
 	for {
-		// skip containers
-		//if il.lst[i].drawable == true && il.lst[i].need_extract == false {
 		if item_list.lst[i].drawable == true {
 			item_list.item_index = i
 			break
