@@ -407,20 +407,24 @@ fn frame(mut app App) {
 	if app.show_info_flag == true && app.scale > 1 {
 		mut bw := f32(0.25)
 		mut bh := f32(0.25 / app.img_ratio)
-		mut bx := f32(1 - bw)
-		mut by := f32(1 - bh)
 		
 		// manage the rotations
 		if rotation & 1 == 1 {
 			bw,bh = bh,bw
+		}
+		mut bx := f32(1 - bw)
+		mut by := f32(1 - bh)
+		if rotation & 1 == 1 {
 			bx,by = by,bx
 		}
-		r := rotation << 1
 		
-		bh /= ratio
+		bh_old1 := bh
+		bh *= ratio
+		by += (bh_old1 - bh) 
 		
 		// draw the zoom icon
 		sgl.begin_quads()
+		r := rotation << 1
 		sgl.v2f_t2f_c3b(bx     , by     , uv[(0 + r) & 7] , uv[(1 + r) & 7], c[0], c[1], c[2])
 		sgl.v2f_t2f_c3b(bx + bw, by     , uv[(2 + r) & 7] , uv[(3 + r) & 7], c[0], c[1], c[2])
 		sgl.v2f_t2f_c3b(bx + bw, by + bh, uv[(4 + r) & 7] , uv[(5 + r) & 7], c[0], c[1], c[2])
@@ -429,13 +433,13 @@ fn frame(mut app App) {
 		
 		// draw the zoom rectangle
 		sgl.disable_texture()
-			
+		
 		bw_old := bw
 		bh_old := bh
 		bw /=  app.scale
 		bh /=  app.scale
 		bx += (bw_old - bw) / 2 - (tr_x / 8) / app.scale
-		by += (bh_old - bh) / 2 - (tr_y / (8*ratio)) / app.scale
+		by += (bh_old - bh) / 2 - ((tr_y / 8) / app.scale) * ratio
 		
 		c = [byte(255),255,0]! // yellow
 		sgl.begin_line_strip()
@@ -551,8 +555,8 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		app.tr_flag = false
  	}
 	if ev.typ == .mouse_move && app.tr_flag == true {
-		app.tr_x += (app.mouse_x - app.last_tr_x) * 2
-		app.tr_y += (app.mouse_y - app.last_tr_y) * 2
+		app.tr_x += (app.mouse_x - app.last_tr_x) * 3 * app.gg.scale
+		app.tr_y += (app.mouse_y - app.last_tr_y) * 3 * app.gg.scale
 		app.last_tr_x = app.mouse_x
 		app.last_tr_y = app.mouse_y
 		//println("Translate: ${app.tr_x} ${app.tr_y}")
