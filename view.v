@@ -417,7 +417,7 @@ fn frame(mut app App) {
 		}
 		r := rotation << 1
 		
-		bh *= ratio
+		bh /= ratio
 		
 		// draw the zoom icon
 		sgl.begin_quads()
@@ -435,7 +435,7 @@ fn frame(mut app App) {
 		bw /=  app.scale
 		bh /=  app.scale
 		bx += (bw_old - bw) / 2 - (tr_x / 8) / app.scale
-		by += (bh_old - bh) / 2 - (tr_y / 8) / app.scale
+		by += (bh_old - bh) / 2 - (tr_y / (8*ratio)) / app.scale
 		
 		c = [byte(255),255,0]! // yellow
 		sgl.begin_line_strip()
