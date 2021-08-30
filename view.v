@@ -15,6 +15,7 @@ import gx
 //import math
 import sokol.gfx
 import sokol.sgl
+import sokol.sapp
 import stbi
 import szip
 
@@ -584,6 +585,12 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			// rotate the image
 			if ev.key_code == .r {
 				app.item_list.rotate(1)
+			}
+			
+			// full screen
+			if ev.key_code == .f {
+				println("Full screen state: ${sapp.is_fullscreen()}")
+				sapp.toggle_fullscreen()
 			}
 		}
 	}
