@@ -213,8 +213,8 @@ fn (item_list Item_list )print_list() {
 	println("================================")
 }
 
-fn (mut item_list Item_list ) get_items_list()? {
-	args := os.args[1..]
+fn (mut item_list Item_list ) get_items_list(args []string)? {
+	
 	println("Args: ${args}")
 	
 	item_list.path_sep = $if windows { '\\' } $else { '/' }

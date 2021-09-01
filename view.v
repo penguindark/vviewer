@@ -638,6 +638,22 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			}
 		}
 	}
+	
+	// drag&drop
+	if ev.typ == .files_droped {
+		num := sapp.get_num_dropped_files()
+		mut file_list := []string{}
+		for i in 0..num {
+			file_list << sapp.get_dropped_file_path(i)
+		}
+		println("Drag in gg: ${file_list}")
+		app.item_list = Item_list{}
+		app.item_list.get_items_list(file_list) or {
+			eprintln("ERROR loading dropped files!") 
+			app.item_list = Item_list{}
+		}
+		load_image(mut app)
+	}
 }
 
 /******************************************************************************
@@ -672,7 +688,7 @@ fn main() {
 	
 	// Scan all the arguments to find images
 	app.item_list = Item_list{}
-	app.item_list.get_items_list() or {
+	app.item_list.get_items_list(os.args[1..]) or {
 		eprintln("ERROR loading files!") 
 		app.item_list = Item_list{}
 	}
@@ -689,6 +705,9 @@ fn main() {
 		cleanup_fn: cleanup
 		event_fn: my_event_manager
 		font_path: font_path
+		enable_dragndrop: true
+		max_dropped_files: 64
+		max_dropped_file_path_length: 2048
 	)
 
 	app.gg.run()
