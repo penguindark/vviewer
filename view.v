@@ -665,14 +665,14 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 [console]
 fn main() {	
 	//mut font_path := os.resource_abs_path(os.join_path('../assets/fonts/', 'RobotoMono-Regular.ttf'))
-	font_name := 'RobotoMono-Regular.ttf'
+	font_name := 'ShareTechMono-Regular.ttf'
 	font_path := os.join_path(os.temp_dir(), font_name)
 	println("Temporary path for the font file: [$font_path]")
 	
 	// if the font doesn't exist crate it from the ebedded one
 	if os.exists(font_path) == false {
 		println("Write font [$font_name] in temp folder.")
-		embedded_file := $embed_file('RobotoMono-Regular.ttf')
+		embedded_file := $embed_file('ShareTechMono-Regular.ttf')
 		os.write_file(font_path, embedded_file.to_string()) or {
 			eprintln("ERROR: not able to write font file to [$font_path]")
 			exit(1)
