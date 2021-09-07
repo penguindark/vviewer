@@ -34,7 +34,6 @@ mut:
 	gg             &gg.Context
 	pip_3d         C.sgl_pipeline
 	texture        C.sg_image
-	//texture_filler C.sg_image
 	init_flag      bool
 	frame_count    int
 	mouse_x        int = -1
@@ -75,8 +74,11 @@ mut:
 	mem_buf        voidptr   // buffer used to load items from files/containers
 	mem_buf_size   int       // size of the buffer
 	
+	// font
+	font_path    string    // path to the temp font file
+	
 	// logo
-	logo_path    string    // path of the logo
+	logo_path    string    // path of the temp font logo
 	logo_texture C.sg_image
 	logo_w       int
 	logo_h       int
@@ -249,13 +251,6 @@ pub fn load_image(mut app App) {
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		//println("texture: [${app.img_w},${app.img_h}] ratio: ${app.img_ratio}")
 	} else {
-		/*
-		app.texture = app.texture_filler
-		app.img_w = 256
-		app.img_h = 256
-		app.img_ratio = f32(app.img_w) / f32(app.img_h)
-		println("texture NOT FOUND: use filler!")
-		*/
 		app.texture = app.logo_texture
 		app.img_w = app.logo_w
 		app.img_h = app.logo_h
@@ -292,49 +287,6 @@ fn app_init(mut app App) {
 	pipdesc.cull_mode = .back
 	app.pip_3d = sgl.make_pipeline(&pipdesc)
 
-/*
-	// create chessboard texture 256*256 RGBA
-	w := 256
-	h := 256
-	sz := w * h * 4
-	tmp_txt := unsafe { malloc(sz) }
-	mut i := 0
-	for i < sz {
-		unsafe {
-			y := (i >> 0x8) >> 5 // 8 cell
-			x := (i & 0xFF) >> 5 // 8 cell
-			// upper left corner
-			if x == 0 && y == 0 {
-				tmp_txt[i] = byte(0xFF)
-				tmp_txt[i + 1] = byte(0)
-				tmp_txt[i + 2] = byte(0)
-				tmp_txt[i + 3] = byte(0xFF)
-			}
-			// low right corner
-			else if x == 7 && y == 7 {
-				tmp_txt[i] = byte(0)
-				tmp_txt[i + 1] = byte(0xFF)
-				tmp_txt[i + 2] = byte(0)
-				tmp_txt[i + 3] = byte(0xFF)
-			} else {
-				col := if ((x + y) & 1) == 1 { 0xFF } else { 0 }
-				tmp_txt[i] = byte(col) // red
-				tmp_txt[i + 1] = byte(col) // green
-				tmp_txt[i + 2] = byte(col) // blue
-				tmp_txt[i + 3] = byte(0xFF) // alpha
-			}
-			i += 4
-		}
-	}
-	
-	unsafe {
-		// filler texture
-		app.texture_filler = create_texture(w, h, tmp_txt)
-		// load the default texture with the chess board
-		app.texture = create_texture(w, h, tmp_txt)
-		free(tmp_txt)
-	}
-*/	
 	// load logo
 	app.logo_texture, app.logo_w, app.logo_h = app.load_texture_from_file(app.logo_path)
 	app.logo_ratio = f32(app.img_w) / f32(app.img_h)
@@ -352,6 +304,11 @@ fn app_init(mut app App) {
 
 fn cleanup(mut app App) {
 	gfx.shutdown()
+	
+	// delete temp files
+	os.rm(app.font_path) or {eprintln("ERROR: Can not delete temp font file.")}
+	os.rm(app.logo_path) or {eprintln("ERROR: Can not delete temp logo file.")}
+	println("Cleaning done.")
 }
 
 /******************************************************************************
@@ -755,6 +712,7 @@ fn main() {
 	}
 	
 	app.logo_path = logo_path
+	app.font_path = font_path
 	
 	// Scan all the arguments to find images
 	app.item_list = Item_list{}
