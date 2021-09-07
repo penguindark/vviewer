@@ -754,7 +754,7 @@ fn main() {
 	logo_name := 'logo.png'
 	logo_path := os.join_path(os.temp_dir(), logo_name)
 	println("Temporary path for the logo: [$logo_path]")
-	// if the font doesn't exist crate it from the ebedded one
+	// if the logo doesn't exist crate it from the ebedded one
 	if os.exists(logo_path) == false {
 		println("Write logo [$logo_name] in temp folder.")
 		embedded_file := $embed_file('logo.png')
