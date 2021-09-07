@@ -27,7 +27,16 @@ const (
 	uv         = [f32(0),0,1,0,1,1,0,1]!  // used for zoom icon during rotations
 	
 	text_drop_files = "Drop here some images/folder/zip to navigate in the pics"
+	text_scanning = "Scanning..."
+	text_loading = "Loading..."
 )
+
+enum Viewer_state {
+	loading
+	scanning
+	show
+	error
+}
 
 struct App {
 mut:
@@ -39,6 +48,8 @@ mut:
 	mouse_x        int = -1
 	mouse_y        int = -1
 	scroll_y       int
+	
+	state          Viewer_state = .scanning
 	
 	// translation
 	tr_flag     bool
@@ -221,7 +232,19 @@ pub fn (mut app App) load_texture_from_file(file_name string) (C.sg_image, int, 
 	return app.load_texture_from_buffer(app.mem_buf, app.mem_buf_size)
 }
 
+pub fn show_logo(mut app App) {
+	clear_modifier_params(mut app)
+	if app.texture != app.logo_texture {
+		destroy_texture(app.texture)
+	}
+	app.texture = app.logo_texture
+	app.img_w = app.logo_w
+	app.img_h = app.logo_h
+	app.img_ratio = f32(app.img_w) / f32(app.img_h)
+}
+
 pub fn load_image(mut app App) {
+	app.state = .loading
 	clear_modifier_params(mut app)
 	// destroy the texture, avoid to destroy the logo
 	if app.texture != app.logo_texture {
@@ -232,9 +255,12 @@ pub fn load_image(mut app App) {
 	if app.item_list.is_inside_a_container() == true {
 		app.texture, app.img_w, app.img_h = app.load_texture_from_zip() or {
 			eprintln('ERROR: Can not load image from .ZIP file [${app.item_list.lst[app.item_list.item_index]}].')
+			show_logo(mut app)
+			app.state = .show
 			return
 		}
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
+		app.state = .show
 		return
 	}
 
@@ -257,6 +283,7 @@ pub fn load_image(mut app App) {
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		println("texture NOT FOUND: use logo!")
 	}
+	app.state = .show
 }
 
 /******************************************************************************
@@ -443,10 +470,40 @@ fn frame(mut app App) {
 	
 	sgl.disable_texture()
 	
-	// print the info text if needed
-	if app.show_info_flag == true {
+	
+	if app.state in [.scanning, .loading] {
+
 		app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
-		if app.item_list.n_item > 0 {
+		scale := app.gg.scale
+		font_size := int(20 * scale)
+		x := int(10 * scale)
+		y := int(10 * scale)
+			
+		mut txt_conf := gx.TextCfg{
+			color: gx.white
+			align: .left
+			size: font_size
+		}
+		if app.state == .scanning {
+			app.gg.draw_text(x + 2, y + 2, text_scanning, txt_conf)
+		} else {
+			app.gg.draw_text(x + 2, y + 2, text_loading, txt_conf)
+		}
+		txt_conf = gx.TextCfg{
+			color: gx.black
+			align: .left
+			size: font_size
+		}
+		if app.state == .scanning {
+			app.gg.draw_text(x, y, text_scanning, txt_conf)
+		} else {
+			app.gg.draw_text(x, y, text_loading, txt_conf)
+		}
+	} else if app.state == .show {
+		// print the info text if needed
+		if app.item_list.n_item > 0 && app.show_info_flag == true {
+			app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
+			
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
 			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
@@ -472,32 +529,31 @@ fn frame(mut app App) {
 			unsafe{
 				text.free()
 			}
-			
+				
+		} else {
+			if app.item_list.n_item <= 0 {
+				app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
+				scale := app.gg.scale
+				font_size := int(20 * scale)
+				x := int(10 * scale)
+				y := int(10 * scale)
+					
+				mut txt_conf := gx.TextCfg{
+					color: gx.white
+					align: .left
+					size: font_size
+				}
+				app.gg.draw_text(x + 2, y + 2, text_drop_files, txt_conf)
+				txt_conf = gx.TextCfg{
+					color: gx.black
+					align: .left
+					size: font_size
+				}
+				app.gg.draw_text(x, y, text_drop_files, txt_conf)
+			}
 		}
 	}
-	
-	if app.item_list.n_item <= 0 {
-		app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
-		scale := app.gg.scale
-		font_size := int(20 * scale)
-		x := int(10 * scale)
-		y := int(10 * scale)
-			
-		mut txt_conf := gx.TextCfg{
-			color: gx.white
-			align: .left
-			size: font_size
-		}
-		app.gg.draw_text(x + 2, y + 2, text_drop_files, txt_conf)
-		txt_conf = gx.TextCfg{
-			color: gx.black
-			align: .left
-			size: font_size
-		}
-		app.gg.draw_text(x, y, text_drop_files, txt_conf)
-			
-	}
-	
+
 	app.gg.end()
 	app.frame_count++
 }
@@ -652,12 +708,16 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	
 	// drag&drop
 	if ev.typ == .files_droped {
+		app.state = .scanning
+		// set logo texture during scanning
+		show_logo(mut app)
+		
 		num := sapp.get_num_dropped_files()
 		mut file_list := []string{}
 		for i in 0..num {
 			file_list << sapp.get_dropped_file_path(i)
 		}
-		println("Drag in gg: ${file_list}")
+		println("Scanning: ${file_list}")
 		app.item_list = Item_list{}
 		app.item_list.get_items_list(file_list) or {
 			eprintln("ERROR loading dropped files!") 
@@ -711,6 +771,7 @@ fn main() {
 		zip: 0
 	}
 	
+	app.state = .scanning
 	app.logo_path = logo_path
 	app.font_path = font_path
 	
