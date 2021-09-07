@@ -25,6 +25,8 @@ const (
 	bg_color   = gx.black
 	pi_2       = 3.14159265359 / 2.0
 	uv         = [f32(0),0,1,0,1,1,0,1]!  // used for zoom icon during rotations
+	
+	text_drop_files = "Drop here some images/folder/zip to navigate in the pics"
 )
 
 struct App {
@@ -32,7 +34,7 @@ mut:
 	gg             &gg.Context
 	pip_3d         C.sgl_pipeline
 	texture        C.sg_image
-	texture_filler C.sg_image
+	//texture_filler C.sg_image
 	init_flag      bool
 	frame_count    int
 	mouse_x        int = -1
@@ -72,6 +74,13 @@ mut:
 	// memory buffer
 	mem_buf        voidptr   // buffer used to load items from files/containers
 	mem_buf_size   int       // size of the buffer
+	
+	// logo
+	logo_path    string    // path of the logo
+	logo_texture C.sg_image
+	logo_w       int
+	logo_h       int
+	logo_ratio   f32 = 1.0
 }
 
 /******************************************************************************
@@ -194,7 +203,7 @@ fn (mut app App) load_texture_from_buffer(buf voidptr, buf_len int) (C.sg_image,
 	stbi.set_flip_vertically_on_load(true)
 	img := stbi.load_from_memory(buf, buf_len) or {
 		eprintln('ERROR: Can not load image from buffer, file: [${app.item_list.lst[app.item_list.item_index]}].')
-		return app.texture_filler, 256, 256
+		return app.logo_texture, app.logo_w, app.logo_h
 		//exit(1)
 	}
 	res := create_texture(int(img.width), int(img.height), img.data)
@@ -212,7 +221,10 @@ pub fn (mut app App) load_texture_from_file(file_name string) (C.sg_image, int, 
 
 pub fn load_image(mut app App) {
 	clear_modifier_params(mut app)
-	destroy_texture(app.texture)
+	// destroy the texture, avoid to destroy the logo
+	if app.texture != app.logo_texture {
+		destroy_texture(app.texture)
+	}
 	
 	// load from .ZIP file
 	if app.item_list.is_inside_a_container() == true {
@@ -237,11 +249,18 @@ pub fn load_image(mut app App) {
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		//println("texture: [${app.img_w},${app.img_h}] ratio: ${app.img_ratio}")
 	} else {
+		/*
 		app.texture = app.texture_filler
 		app.img_w = 256
 		app.img_h = 256
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		println("texture NOT FOUND: use filler!")
+		*/
+		app.texture = app.logo_texture
+		app.img_w = app.logo_w
+		app.img_h = app.logo_h
+		app.img_ratio = f32(app.img_w) / f32(app.img_h)
+		println("texture NOT FOUND: use logo!")
 	}
 }
 
@@ -273,6 +292,7 @@ fn app_init(mut app App) {
 	pipdesc.cull_mode = .back
 	app.pip_3d = sgl.make_pipeline(&pipdesc)
 
+/*
 	// create chessboard texture 256*256 RGBA
 	w := 256
 	h := 256
@@ -306,6 +326,7 @@ fn app_init(mut app App) {
 			i += 4
 		}
 	}
+	
 	unsafe {
 		// filler texture
 		app.texture_filler = create_texture(w, h, tmp_txt)
@@ -313,6 +334,17 @@ fn app_init(mut app App) {
 		app.texture = create_texture(w, h, tmp_txt)
 		free(tmp_txt)
 	}
+*/	
+	// load logo
+	app.logo_texture, app.logo_w, app.logo_h = app.load_texture_from_file(app.logo_path)
+	app.logo_ratio = f32(app.img_w) / f32(app.img_h)
+	
+	app.img_w = app.logo_w
+	app.img_h = app.logo_h
+	app.img_ratio = app.logo_ratio
+	app.texture = app.logo_texture
+	
+	println("INIT DONE!")
 	
 	// init done, load the first image if any
 	load_image(mut app)
@@ -485,6 +517,28 @@ fn frame(mut app App) {
 			}
 			
 		}
+	}
+	
+	if app.item_list.n_item <= 0 {
+		app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
+		scale := app.gg.scale
+		font_size := int(20 * scale)
+		x := int(10 * scale)
+		y := int(10 * scale)
+			
+		mut txt_conf := gx.TextCfg{
+			color: gx.white
+			align: .left
+			size: font_size
+		}
+		app.gg.draw_text(x + 2, y + 2, text_drop_files, txt_conf)
+		txt_conf = gx.TextCfg{
+			color: gx.black
+			align: .left
+			size: font_size
+		}
+		app.gg.draw_text(x, y, text_drop_files, txt_conf)
+			
 	}
 	
 	app.gg.end()
@@ -679,12 +733,28 @@ fn main() {
 		}
 	}
 	
+	// logo image
+	logo_name := 'logo.png'
+	logo_path := os.join_path(os.temp_dir(), logo_name)
+	println("Temporary path for the logo: [$logo_path]")
+	// if the font doesn't exist crate it from the ebedded one
+	if os.exists(logo_path) == false {
+		println("Write logo [$logo_name] in temp folder.")
+		embedded_file := $embed_file('logo.png')
+		os.write_file(logo_path, embedded_file.to_string()) or {
+			eprintln("ERROR: not able to write logo file to [$logo_path]")
+			exit(1)
+		}
+	}
+	
 	// App init
 	mut app := &App{
 		gg: 0
 		// zip fields
 		zip: 0
 	}
+	
+	app.logo_path = logo_path
 	
 	// Scan all the arguments to find images
 	app.item_list = Item_list{}
