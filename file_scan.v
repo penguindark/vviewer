@@ -213,7 +213,7 @@ fn (item_list Item_list )print_list() {
 	println("================================")
 }
 
-fn (mut item_list Item_list ) get_items_list(args []string)? {
+fn (mut item_list Item_list ) get_items_list(args []string) {
 	
 	println("Args: ${args}")
 	
@@ -228,7 +228,10 @@ fn (mut item_list Item_list ) get_items_list(args []string)? {
 				i_type: .folder
 			}
 			item_list.lst << item
-			item_list.scan_folder(x, item_list.lst.len - 1)?
+			item_list.scan_folder(x, item_list.lst.len - 1) or { 
+				eprintln("ERROR: scanning folder [$x]!") 
+				continue
+			}
 		} else {
 			
 			mut item := Item{
@@ -241,7 +244,10 @@ fn (mut item_list Item_list ) get_items_list(args []string)? {
 			if ext == .zip {
 				item.i_type = .zip
 				item_list.lst << item
-				item_list.scan_zip(x, item_list.lst.len-1)?
+				item_list.scan_zip(x, item_list.lst.len-1) or {
+					eprintln("ERROR: scanning zip [$x]!") 
+					continue
+				}
 				continue
 			}
 			// single images

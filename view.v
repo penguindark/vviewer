@@ -118,7 +118,7 @@ fn create_texture(w int, h int, buf &u8) C.sg_image {
 	// comment if .dynamic is enabled
 	img_desc.data.subimage[0][0] = C.sg_range{
 		ptr: buf
-		size: size_t(sz)
+		size: usize(sz)
 	}
 
 	sg_img := C.sg_make_image(&img_desc)
@@ -135,7 +135,7 @@ fn update_text_texture(sg_img C.sg_image, w int, h int, buf &byte) {
 	mut tmp_sbc := C.sg_image_data{}
 	tmp_sbc.subimage[0][0] = C.sg_range{
 		ptr: buf
-		size: size_t(sz)
+		size: usize(sz)
 	}
 	C.sg_update_image(sg_img, &tmp_sbc)
 }
@@ -470,92 +470,60 @@ fn frame(mut app App) {
 	
 	sgl.disable_texture()
 	
-	
+	//
+	// Draw info text
+	//
+	x := 10
+	y := 10
 	if app.state in [.scanning, .loading] {
-
-		app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
-		scale := app.gg.scale
-		font_size := int(20 * scale)
-		x := int(10 * scale)
-		y := int(10 * scale)
-			
-		mut txt_conf := gx.TextCfg{
-			color: gx.white
-			align: .left
-			size: font_size
-		}
 		if app.state == .scanning {
-			app.gg.draw_text(x + 2, y + 2, text_scanning, txt_conf)
+			draw_text(mut app, text_scanning, x, y, 20)
 		} else {
-			app.gg.draw_text(x + 2, y + 2, text_loading, txt_conf)
-		}
-		txt_conf = gx.TextCfg{
-			color: gx.black
-			align: .left
-			size: font_size
-		}
-		if app.state == .scanning {
-			app.gg.draw_text(x, y, text_scanning, txt_conf)
-		} else {
-			app.gg.draw_text(x, y, text_loading, txt_conf)
+			draw_text(mut app, text_loading, x, y, 20)
 		}
 	} else if app.state == .show {
 		// print the info text if needed
-		if app.item_list.n_item > 0 && app.show_info_flag == true {
-			app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
-			
+		if app.item_list.n_item > 0 && app.show_info_flag == true {		
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
 			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
-						
-			scale := app.gg.scale
-			font_size := int(20 * scale)
-			x := int(10 * scale)
-			y := int(10 * scale)
-				
-			mut txt_conf := gx.TextCfg{
-				color: gx.white
-				align: .left
-				size: font_size
-			}
-			app.gg.draw_text(x + 2, y + 2, text, txt_conf)
-			txt_conf = gx.TextCfg{
-				color: gx.black
-				align: .left
-				size: font_size
-			}
-			app.gg.draw_text(x, y, text, txt_conf)
-			
+			draw_text(mut app, text, 10, 10, 20)		
 			unsafe{
 				text.free()
 			}
 				
 		} else {
 			if app.item_list.n_item <= 0 {
-				app.gg.begin() // this other app.gg.begin() is needed to have the text on the textured quad
-				scale := app.gg.scale
-				font_size := int(20 * scale)
-				x := int(10 * scale)
-				y := int(10 * scale)
-					
-				mut txt_conf := gx.TextCfg{
-					color: gx.white
-					align: .left
-					size: font_size
-				}
-				app.gg.draw_text(x + 2, y + 2, text_drop_files, txt_conf)
-				txt_conf = gx.TextCfg{
-					color: gx.black
-					align: .left
-					size: font_size
-				}
-				app.gg.draw_text(x, y, text_drop_files, txt_conf)
+				draw_text(mut app, text_drop_files, 10, 10, 20)
 			}
 		}
 	}
 
 	app.gg.end()
 	app.frame_count++
+}
+
+// draw readable text
+fn draw_text(mut app App, in_txt string, in_x int, in_y int, fnt_sz f32) {
+	scale := app.gg.scale
+	font_size := int(fnt_sz * scale)
+	
+	mut txt_conf_c0 := gx.TextCfg{
+		color: gx.white //gx.rgb( (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff)
+		align: .left
+		size: font_size
+	}
+	mut txt_conf_c1 := gx.TextCfg{
+		color: gx.black //gx.rgb( (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff)
+		align: .left
+		size: font_size
+	}
+	app.gg.begin()
+
+	x := int(in_x * scale)
+	y := int(in_y * scale)
+	app.gg.draw_text(x + 2, y + 2, in_txt, txt_conf_c0)
+	app.gg.draw_text(x, y, in_txt, txt_conf_c1)
 }
 
 /******************************************************************************
@@ -719,10 +687,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		}
 		println("Scanning: ${file_list}")
 		app.item_list = Item_list{}
-		app.item_list.get_items_list(file_list) or {
-			eprintln("ERROR loading dropped files!") 
-			app.item_list = Item_list{}
-		}
+		app.item_list.get_items_list(file_list)
 		load_image(mut app)
 	}
 }
@@ -777,10 +742,7 @@ fn main() {
 	
 	// Scan all the arguments to find images
 	app.item_list = Item_list{}
-	app.item_list.get_items_list(os.args[1..]) or {
-		eprintln("ERROR loading files!") 
-		app.item_list = Item_list{}
-	}
+	app.item_list.get_items_list(os.args[1..])
 	
 	app.gg = gg.new_context(
 		width: win_width
