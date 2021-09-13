@@ -41,7 +41,7 @@ enum Viewer_state {
 struct App {
 mut:
 	gg             &gg.Context
-	pip_3d         C.sgl_pipeline
+	pip_viewer     C.sgl_pipeline
 	texture        C.sg_image
 	init_flag      bool
 	frame_count    int
@@ -71,7 +71,7 @@ mut:
 	img_ratio   f32 = 1.0
 	
 	// item list
-	item_list   Item_list
+	item_list   &Item_list
 	
 	// Text info and help
 	show_info_flag bool = true
@@ -244,6 +244,11 @@ pub fn show_logo(mut app App) {
 }
 
 pub fn load_image(mut app App) {
+	if app.item_list.loaded == false || app.init_flag == false {
+		//show_logo(mut app)
+		//app.state = .show
+		return
+	}
 	app.state = .loading
 	clear_modifier_params(mut app)
 	// destroy the texture, avoid to destroy the logo
@@ -312,7 +317,7 @@ fn app_init(mut app App) {
 		compare: gfx.CompareFunc(C.SG_COMPAREFUNC_LESS_EQUAL)
 	}
 	pipdesc.cull_mode = .back
-	app.pip_3d = sgl.make_pipeline(&pipdesc)
+	app.pip_viewer = sgl.make_pipeline(&pipdesc)
 
 	// load logo
 	app.logo_texture, app.logo_w, app.logo_h = app.load_texture_from_file(app.logo_path)
@@ -327,6 +332,7 @@ fn app_init(mut app App) {
 	
 	// init done, load the first image if any
 	load_image(mut app)
+	
 }
 
 fn cleanup(mut app App) {
@@ -349,6 +355,7 @@ fn frame(mut app App) {
 	if ws.width <= 0 || ws.height <= 0 {
 		return
 	}
+	
 	mut ratio := f32(ws.width) / ws.height
 	dw := ws.width
 	dh := ws.height
@@ -360,7 +367,7 @@ fn frame(mut app App) {
 	sgl.viewport(0, 0, dw, dh, true)
 	
 	// enable our pipeline
-	sgl.load_pipeline(app.pip_3d)
+	sgl.load_pipeline(app.pip_viewer)
 	sgl.enable_texture()
 	sgl.texture(app.texture)
 	
@@ -373,7 +380,7 @@ fn frame(mut app App) {
 	sgl.scale(2.0 * app.scale, 2.0  * app.scale, 0.0)
 	// roation
 	mut rotation := 0
-	if app.item_list.n_item > 0 {
+	if app.state == .show && app.item_list.n_item > 0 {
 		rotation = app.item_list.lst[app.item_list.item_index].rotation
 		sgl.rotate( pi_2 * f32(rotation) , 0.0, 0.0, -1.0)
 	}
@@ -417,7 +424,6 @@ fn frame(mut app App) {
 	
 	// restore all the transformations
 	sgl.pop_matrix()
-	
 	
 	// Zoom icon
 	if app.show_info_flag == true && app.scale > 1 {
@@ -466,9 +472,8 @@ fn frame(mut app App) {
 		sgl.v2f_c3b(bx     , by     , c[0], c[1], c[2])
 		sgl.end()
 	}
-	
-	
 	sgl.disable_texture()
+	
 	
 	//
 	// Draw info text
@@ -638,7 +643,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		}
 		
 		// do actions only if there are items in the list
-		if app.item_list.n_item > 0 {
+		if app.item_list.loaded == true && app.item_list.n_item > 0 {
 			// show previous image
 			if ev.key_code == .left {
 				app.item_list.get_next_item(-1)
@@ -686,10 +691,19 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 			file_list << sapp.get_dropped_file_path(i)
 		}
 		println("Scanning: ${file_list}")
-		app.item_list = Item_list{}
-		app.item_list.get_items_list(file_list)
-		load_image(mut app)
+		app.item_list = &Item_list{}
+		app.item_list.loaded = false
+		
+		// load_image(mut app)
+		// go app.item_list.get_items_list(file_list)
+		
+		load_and_show(file_list, mut app)
 	}
+}
+
+fn load_and_show(file_list []string, mut app App) {
+	app.item_list.get_items_list(file_list)
+	load_image(mut app)
 }
 
 /******************************************************************************
@@ -734,6 +748,7 @@ fn main() {
 		gg: 0
 		// zip fields
 		zip: 0
+		item_list: 0
 	}
 	
 	app.state = .scanning
@@ -741,14 +756,15 @@ fn main() {
 	app.font_path = font_path
 	
 	// Scan all the arguments to find images
-	app.item_list = Item_list{}
-	app.item_list.get_items_list(os.args[1..])
+	app.item_list = &Item_list{}
+	//app.item_list.get_items_list(os.args[1..])
+	go load_and_show(os.args[1..], mut app)
 	
 	app.gg = gg.new_context(
 		width: win_width
 		height: win_height
 		create_window: true
-		window_title: 'V Image viewer 0.7'
+		window_title: 'V Image viewer 0.8'
 		user_data: app
 		bg_color: bg_color
 		frame_fn: frame

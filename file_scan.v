@@ -65,6 +65,7 @@ pub mut:
 	path_sep    string
 	item_index  int = -1  // image currently shown
 	n_item      int       // number of images scanned
+	loaded      bool      // flag that indicate that the list is ready to  be used
 }
 
 /******************************************************************************
@@ -214,7 +215,7 @@ fn (item_list Item_list )print_list() {
 }
 
 fn (mut item_list Item_list ) get_items_list(args []string) {
-	
+	item_list.loaded = false
 	println("Args: ${args}")
 	
 	item_list.path_sep = $if windows { '\\' } $else { '/' }
@@ -269,6 +270,7 @@ fn (mut item_list Item_list ) get_items_list(args []string) {
 	println("Scanning done.")
 	
 	item_list.get_next_item(1)
+	item_list.loaded = true
 }
 
 /******************************************************************************
