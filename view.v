@@ -241,6 +241,7 @@ pub fn show_logo(mut app App) {
 	app.img_w = app.logo_w
 	app.img_h = app.logo_h
 	app.img_ratio = f32(app.img_w) / f32(app.img_h)
+	//app.gg.refresh_ui()
 }
 
 pub fn load_image(mut app App) {
@@ -266,6 +267,7 @@ pub fn load_image(mut app App) {
 		}
 		app.img_ratio = f32(app.img_w) / f32(app.img_h)
 		app.state = .show
+		//app.gg.refresh_ui()
 		return
 	}
 
@@ -491,7 +493,8 @@ fn frame(mut app App) {
 		if app.item_list.n_item > 0 && app.show_info_flag == true {		
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
-			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			text := "${num}/${of_num}"
 			draw_text(mut app, text, 10, 10, 20)		
 			unsafe{
 				text.free()
@@ -503,7 +506,7 @@ fn frame(mut app App) {
 			}
 		}
 	}
-
+	
 	app.gg.end()
 	app.frame_count++
 }
@@ -631,6 +634,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 		//println(ev.key_code)
 		// Exit using the ESC key or Q key
 		if ev.key_code == .escape || ev.key_code == .q {
+			cleanup(mut app)
 			exit(0)
 		}
 		// Toggle info text OSD
@@ -775,6 +779,8 @@ fn main() {
 		enable_dragndrop: true
 		max_dropped_files: 64
 		max_dropped_file_path_length: 2048
+		
+		//ui_mode: true
 	)
 
 	app.gg.run()
