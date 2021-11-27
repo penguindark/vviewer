@@ -1,6 +1,6 @@
 /**********************************************************************
 *
-* simple Picture Viewer V. 0.7
+* simple Picture Viewer V. 0.9
 *
 * Copyright (c) 2021 Dario Deledda. All rights reserved.
 * Use of this source code is governed by an MIT license
@@ -18,6 +18,26 @@ import sokol.sgl
 import sokol.sapp
 import stbi
 import szip
+
+// Help text
+const (
+	help_text_rows = [
+		"Image Viwer 0.9 help.",
+		"",
+		"ESC/q - Quit",
+		"cur. right - Next image",
+		"cur. left  - Previous image",
+		"cur. up    - Next folder",
+		"cur. down  - Previous folder",
+		"F - Toggle full screen",
+		"R - Rotate image of 90 degree",
+		"I - Toggle the info text",
+		""
+		"mouse wheel - next/previous images",
+		"keep pressed left  Mouse button - Pan on the image",
+		"keep pressed rigth Mouse button - Zoom on the image",
+	]
+)
 
 const (
 	win_width  = 800
@@ -482,6 +502,10 @@ fn frame(mut app App) {
 	//
 	x := 10
 	y := 10
+	
+	
+	app.gg.begin()
+	
 	if app.state in [.scanning, .loading] {
 		if app.state == .scanning {
 			draw_text(mut app, text_scanning, x, y, 20)
@@ -493,8 +517,8 @@ fn frame(mut app App) {
 		if app.item_list.n_item > 0 && app.show_info_flag == true {		
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
-			//text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
-			text := "${num}/${of_num}"
+			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			//text := "${num}/${of_num}"
 			draw_text(mut app, text, 10, 10, 20)		
 			unsafe{
 				text.free()
@@ -507,9 +531,19 @@ fn frame(mut app App) {
 		}
 	}
 	
+	if app.show_help_flag == true {
+		mut txt_y := 30
+		for r in help_text_rows {
+			draw_text(mut app, r, 10, txt_y, 20)
+			txt_y += 20
+		}
+	}
+	
 	app.gg.end()
 	app.frame_count++
 }
+
+
 
 // draw readable text
 fn draw_text(mut app App, in_txt string, in_x int, in_y int, fnt_sz f32) {
@@ -526,7 +560,7 @@ fn draw_text(mut app App, in_txt string, in_x int, in_y int, fnt_sz f32) {
 		align: .left
 		size: font_size
 	}
-	app.gg.begin()
+	
 
 	x := int(in_x * scale)
 	y := int(in_y * scale)
@@ -762,7 +796,7 @@ fn main() {
 	// Scan all the arguments to find images
 	app.item_list = &Item_list{}
 	//app.item_list.get_items_list(os.args[1..])
-	go load_and_show(os.args[1..], mut app)
+	load_and_show(os.args[1..], mut app)
 	
 	app.gg = gg.new_context(
 		width: win_width
