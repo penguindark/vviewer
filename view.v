@@ -102,8 +102,8 @@ mut:
 	zip_index    int = -1  // index of the zip contaire item
 		
 	// memory buffer
-	mem_buf        voidptr   // buffer used to load items from files/containers
-	mem_buf_size   int       // size of the buffer
+	mem_buf        voidptr // buffer used to load items from files/containers
+	mem_buf_size int       // size of the buffer
 	
 	// font
 	font_path    string    // path to the temp font file
@@ -247,7 +247,6 @@ fn (mut app App) load_texture_from_buffer(buf voidptr, buf_len int) (C.sg_image,
 }
 
 pub fn (mut app App) load_texture_from_file(file_name string) (C.sg_image, int, int) {
-	//buffer := read_bytes_from_file(file_name)
 	app.read_bytes(file_name)
 	return app.load_texture_from_buffer(app.mem_buf, app.mem_buf_size)
 }
@@ -503,7 +502,6 @@ fn frame(mut app App) {
 	x := 10
 	y := 10
 	
-	
 	app.gg.begin()
 	
 	if app.state in [.scanning, .loading] {
@@ -531,6 +529,9 @@ fn frame(mut app App) {
 		}
 	}
 	
+	//
+	// Draw Help text
+	//
 	if app.show_help_flag == true {
 		mut txt_y := 30
 		for r in help_text_rows {
@@ -666,6 +667,7 @@ fn my_event_manager(mut ev gg.Event, mut app App) {
 	
 	if ev.typ == .key_down {
 		//println(ev.key_code)
+		
 		// Exit using the ESC key or Q key
 		if ev.key_code == .escape || ev.key_code == .q {
 			cleanup(mut app)
@@ -757,7 +759,7 @@ fn main() {
 	font_path := os.join_path(os.temp_dir(), font_name)
 	println("Temporary path for the font file: [$font_path]")
 	
-	// if the font doesn't exist crate it from the ebedded one
+	// if the font doesn't exist create it from the ebedded one
 	if os.exists(font_path) == false {
 		println("Write font [$font_name] in temp folder.")
 		embedded_file := $embed_file('ShareTechMono-Regular.ttf')
@@ -771,7 +773,7 @@ fn main() {
 	logo_name := 'logo.png'
 	logo_path := os.join_path(os.temp_dir(), logo_name)
 	println("Temporary path for the logo: [$logo_path]")
-	// if the logo doesn't exist crate it from the ebedded one
+	// if the logo doesn't exist create it from the ebedded one
 	if os.exists(logo_path) == false {
 		println("Write logo [$logo_name] in temp folder.")
 		embedded_file := $embed_file('logo.png')
