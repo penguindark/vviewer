@@ -467,7 +467,7 @@ fn frame(mut app App) {
 		
 		// draw the zoom icon
 		sgl.begin_quads()
-		r := rotation << 1
+		r := int(u32(rotation) << 1)
 		sgl.v2f_t2f_c3b(bx     , by     , uv[(0 + r) & 7] , uv[(1 + r) & 7], c[0], c[1], c[2])
 		sgl.v2f_t2f_c3b(bx + bw, by     , uv[(2 + r) & 7] , uv[(3 + r) & 7], c[0], c[1], c[2])
 		sgl.v2f_t2f_c3b(bx + bw, by + bh, uv[(4 + r) & 7] , uv[(5 + r) & 7], c[0], c[1], c[2])
