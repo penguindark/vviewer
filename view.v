@@ -12,12 +12,14 @@
 import os
 import gg
 import gx
-//import math
+
 import sokol.gfx
 import sokol.sgl
 import sokol.sapp
 import stbi
 import szip
+
+import strings
 
 // Help text
 const (
@@ -114,6 +116,9 @@ mut:
 	logo_w       int
 	logo_h       int
 	logo_ratio   f32 = 1.0
+
+	// string builder
+	bl           strings.Builder = strings.new_builder(512)
 }
 
 /******************************************************************************
@@ -353,7 +358,6 @@ fn app_init(mut app App) {
 	
 	// init done, load the first image if any
 	load_image(mut app)
-	
 }
 
 fn cleanup(mut app App) {
@@ -447,6 +451,7 @@ fn frame(mut app App) {
 	sgl.pop_matrix()
 	
 	// Zoom icon
+	/*
 	if app.show_info_flag == true && app.scale > 1 {
 		mut bw := f32(0.25)
 		mut bh := f32(0.25 / app.img_ratio)
@@ -493,6 +498,7 @@ fn frame(mut app App) {
 		sgl.v2f_c3b(bx     , by     , c[0], c[1], c[2])
 		sgl.end()
 	}
+	*/
 	sgl.disable_texture()
 	
 	
@@ -513,15 +519,35 @@ fn frame(mut app App) {
 	} else if app.state == .show {
 		// print the info text if needed
 		if app.item_list.n_item > 0 && app.show_info_flag == true {		
+			/*
+			// waiting for better autofree
 			num := app.item_list.lst[app.item_list.item_index].n_item
 			of_num := app.item_list.n_item
-			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${int(w*2*app.scale*dw)},${int(h*2*app.scale*dw)}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${app.scale:.2} rotation: ${90 * rotation}"
+			x_screen := int(w*2*app.scale*dw)
+			y_screen := int(h*2*app.scale*dw)
+			rotation_angle := 90 * rotation
+			scale_str := "${app.scale:.2}"
+			text := "${num}/${of_num} [${app.img_w},${app.img_h}]=>[${x_screen},${y_screen}] ${app.item_list.lst[app.item_list.item_index].name} scale: ${scale_str} rotation: ${rotation_angle}"
 			//text := "${num}/${of_num}"
 			draw_text(mut app, text, 10, 10, 20)		
 			unsafe{
 				text.free()
 			}
-				
+			*/
+
+			// Using string builder to avoid memory leak
+			num := app.item_list.lst[app.item_list.item_index].n_item
+			of_num := app.item_list.n_item
+			x_screen := int(w*2*app.scale*dw)
+			y_screen := int(h*2*app.scale*dw)
+			rotation_angle := 90 * rotation
+			scale_str := "${app.scale:.2}"
+			app.bl.clear()
+			app.bl.write_string("${num}/${of_num}")
+			app.bl.write_string(" [${app.img_w}x${app.img_h}]=>[${x_screen}x${y_screen}]")
+			app.bl.write_string(" ${app.item_list.lst[app.item_list.item_index].name}")
+			app.bl.write_string(" scale: ${scale_str} rotation: ${rotation_angle}")
+			draw_text(mut app, app.bl.str(), 10, 10, 20)
 		} else {
 			if app.item_list.n_item <= 0 {
 				draw_text(mut app, text_drop_files, 10, 10, 20)
